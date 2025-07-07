@@ -16,21 +16,21 @@ Earth stats:
 
 ]]
 
-local GravityBody = require(game.ReplicatedStorage.Modules.GravityBody)
-local Constructors = require(game.ReplicatedStorage.Modules.Constructors)
+local GravityBody = require(game.ReplicatedStorage.Modules.BaseModule.OrbitObject.SolarSystemBody.GravityBody)
+local Constructors = require(game.ReplicatedStorage.Modules.BaseModule.Constructors)
 
 -- initialize Planets
 
 local allGravityBodies: GravityBody = {}
 
-for i,v in ipairs(workspace.Planets:GetChildren()) do
+for i, v in ipairs(workspace.Planets:GetChildren()) do
 	print(`thingy {i}: {v}`)
 	table.insert(allGravityBodies, Constructors:GravityBodyConstructor(v))
 	print(allGravityBodies)
 end
 
 while true do
-	for i,v in ipairs(allGravityBodies) do
+	for i, v in ipairs(allGravityBodies) do
 		v:ApplyGravity(allGravityBodies)
 	end
 	task.wait(0.01)
