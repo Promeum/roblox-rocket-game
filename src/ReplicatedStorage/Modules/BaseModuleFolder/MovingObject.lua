@@ -17,6 +17,12 @@ function MovingObject.new(position: Vector3, velocity: Vector3): Modules.MovingO
 	local metatable = {
 		__index = BaseModule.new(),
 		__type = "MovingObject",
+		__add = function(self: Modules.MovingObject, other: Modules.MovingObject): Modules.MovingObject
+			return MovingObject.new(self.Position + other.Position, self.Velocity + other.Velocity)
+		end,
+		__sub = function(self: Modules.MovingObject, other: Modules.MovingObject): Modules.MovingObject
+			return MovingObject.new(self.Position - other.Position, self.Velocity - other.Velocity)
+		end,
 	}
 
 	setmetatable(newMovingObject, metatable)

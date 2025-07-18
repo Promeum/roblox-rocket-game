@@ -65,11 +65,11 @@ end
 --[=[
 	Increments this GravityBody in time, then returns itself.
 ]=]
-function GravityBody:Update(delta: number): Modules.GravityBody
+function GravityBody:Update(time: number): Modules.GravityBody
 	if self.Trajectory then
-		local nextPosition: Modules.TrajectoryObject = self.Trajectory:Step(delta) -- problem here this is NAN
-		print("no nan            vvvv")
-		print(nextPosition:getSuper():getSuper())
+		-- local nextPosition: Modules.MovingObject = self.Trajectory:CalculatePointFromTime(time)
+		local nextPosition: Modules.TrajectoryObject = self.Trajectory:AtTime(time)
+
 		self:getSuper():setSuper(nextPosition:getSuper():getSuper())
 
 		self.RootPart.Position = self.CalculateWorkspacePosition(self.Position, self.ParentGravityBody)

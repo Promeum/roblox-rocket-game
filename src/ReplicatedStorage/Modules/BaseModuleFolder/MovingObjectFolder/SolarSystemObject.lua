@@ -10,11 +10,19 @@ local SolarSystemObject = {}
 	Creates a new SolarSystemObject instance.
 ]=]
 function SolarSystemObject.new(position: Vector3, velocity: Vector3): Modules.SolarSystemObject
+	return SolarSystemObject.from(MovingObject.new(position, velocity))
+end
+
+--[=[
+	Creates a new SolarSystemObject instance, with a given MovingObject super-instance.
+	This effectively links this instance with other objects with the same super-instance.
+]=]
+function SolarSystemObject.from(movingObject: Modules.MovingObject): Modules.SolarSystemObject
 	local newSolarSystemObject = table.clone(SolarSystemObject)
 
 	local metatable = {
-		__index = MovingObject.new(position, velocity),
-		__type = "MovingObject",
+		__index = movingObject,
+		__type = "SolarSystemObject",
 	}
 
 	setmetatable(newSolarSystemObject, metatable)
@@ -26,11 +34,10 @@ function SolarSystemObject.CalculateWorkspacePosition(newPosition: Vector3, Orbi
 	local Position = if newPosition then newPosition else Vector3.zero
 	Position *= Constants.SOLAR_SYSTEM_SCALE
 
-	local ParentGravityBody: any = OrbitingBody
-	while ParentGravityBody do
-		Position += ParentGravityBody.RootPart.Position
-		ParentGravityBody = ParentGravityBody.ParentGravityBody
+	if OrbitingBody then
+		Position += OrbitingBody.RootPart.Position
 	end
+
 	return Position
 end
 

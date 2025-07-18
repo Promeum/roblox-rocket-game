@@ -1,8 +1,7 @@
---!strict
-
 local Modules = require(game.ReplicatedStorage.Modules.Modules)
 local Constants = require(game.ReplicatedStorage.Modules.Constants)
 local SolarSystemObject = require(script.Parent.Parent.SolarSystemObject)
+local TrajectoryHolderObject = require(script.Parent.TrajectoryHolderObject)
 local TrajectoryObject = require(script.Parent.TrajectoryObject)
 
 local SolarSystemPhysicsBody = {}
@@ -16,12 +15,24 @@ function SolarSystemPhysicsBody.new(
 	part: Part,
 	inSOIOf: Modules.GravityBody?
 ): Modules.SolarSystemPhysicsBody
+	return SolarSystemPhysicsBody.from(SolarSystemObject.new(position, velocity), part, inSOIOf)
+end
+
+--[=[
+	Creates a new SolarSystemBody instance.
+]=]
+function SolarSystemPhysicsBody.from(
+	solarSystemObject: Modules.SolarSystemObject,
+	part: Part,
+	inSOIOf: Modules.GravityBody?
+): Modules.SolarSystemPhysicsBody
 	local newSolarSystemPhysicsBody = table.clone(SolarSystemPhysicsBody)
 
-	local superInstance = SolarSystemObject.new(position, velocity)
+	local newSolarSystemObject: Modules.SolarSystemObject =
+		SolarSystemObject.new(solarSystemObject.Position, solarSystemObject.Velocity)
 
 	local metatable = {
-		__index = superInstance,
+		__index = newSolarSystemObject,
 		__type = "SolarSystemPhysicsBody",
 	}
 
@@ -29,7 +40,7 @@ function SolarSystemPhysicsBody.new(
 
 	newSolarSystemPhysicsBody.RootPart = part
 	newSolarSystemPhysicsBody.ParentGravityBody = inSOIOf
-	newSolarSystemPhysicsBody.Trajectory = TrajectoryObject.from(superInstance, inSOIOf)
+	newSolarSystemPhysicsBody.TrajectoryHolder = TrajectoryHolderObject.from(newSolarSystemObject, inSOIOf)
 
 	return newSolarSystemPhysicsBody
 end
@@ -38,35 +49,36 @@ end
 	Updates the position and velocity by applying gravity, optionally force changing select values
 ]=]
 function SolarSystemPhysicsBody:Update(
-	delta: number,
+	time: number,
 	toChange: {
 		position: Vector3?,
 		velocity: Vector3?,
 		acceleration: Vector3?,
 		inSOIOf: Modules.GravityBody?,
 	}
-): Modules.TrajectoryObject
+): Modules.MovingObject
 	-- apply physics
-	local nextPosition: Modules.TrajectoryObject =
-		self.Trajectory:Step(delta, if toChange and toChange.acceleration then toChange.acceleration else nil)
+	-- print(self.Position)
+	local nextPosition: Modules.MovingObject = self.TrajectoryHolder:CalculatePointFromTime(time)
+	-- local nextPosition: Modules.MovingObject
 
-	self:getSuper():setSuper(nextPosition:getSuper())
+	-- if toChange and toChange.acceleration then
+	-- 	nextPosition = self.TrajectoryHolder:AtTime(time, toChange.acceleration)
+	-- else
+	-- 	nextPosition = self.TrajectoryHolder:AtTime(time)
+	-- end
+	self:getSuper():setSuper(table.clone(nextPosition))
 
 	self.RootPart.Position = self.CalculateWorkspacePosition(self.Position, self.ParentGravityBody)
 
-	-- assert(typeof(self) == "SolarSystemPhysicsBody", `self is not a SolarSystemPhysicsBody {self}`)
-	local n = Instance.new("Part")
+	-- local n = Instance.new("Part")
 
-	n.Position = (self.Position * Constants.SOLAR_SYSTEM_SCALE)
-		+ if self.ParentGravityBody then self.ParentGravityBody.RootPart.Position else Vector3.zero
-	n.Anchored = true
-	n.Shape = Enum.PartType.Ball
-	n.Size = Vector3.one
-	n.Parent = workspace.Planets
-	--self.RootPart.GravityVectorForce.Force = totalGravityForce
-	--self.RootPart:ApplyImpulse(totalGravityForce * 0.01)
-
-	print(`applied gravity to {self}\n  Vector3({nextPosition.Velocity})\n  Magnitude: {nextPosition.Velocity}`)
+	-- n.Position = (self.Position * Constants.SOLAR_SYSTEM_SCALE)
+	-- 	+ if self.ParentGravityBody then self.ParentGravityBody.RootPart.Position else Vector3.zero
+	-- n.Anchored = true
+	-- n.Shape = Enum.PartType.Ball
+	-- n.Size = Vector3.one
+	-- n.Parent = workspace.Planets
 
 	return nextPosition
 end
