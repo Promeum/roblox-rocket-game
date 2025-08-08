@@ -1,5 +1,8 @@
+--!strict
+
 local Modules = require(game.ReplicatedStorage.Modules.Modules)
 local Constants = require(game.ReplicatedStorage.Modules.Constants)
+local BigMath = require(game.ReplicatedStorage.Modules.BigMath)
 local SolarSystemObject = require(script.Parent.Parent.Parent.SolarSystemObject)
 local TrajectoryObject =
 	require(game.ReplicatedStorage.Modules.BaseModuleFolder.MovingObjectFolder.SolarSystemObjectFolder.TrajectoryObject)
@@ -10,18 +13,18 @@ local GravityBody = {}
 	Creates a new GravityBody instance.
 ]=]
 function GravityBody.new(
-	position: Vector3,
-	velocity: Vector3,
+	position: Modules.Vector3B,
+	velocity: Modules.Vector3B,
 	part: Part,
-	mass: number,
-	SOIRadius: number,
+	mass: Modules.BigNum | number | string,
+	SOIRadius: Modules.BigNum | number | string,
 	OrbitingBody: Modules.GravityBody?
 ): Modules.GravityBody
 	local newGravityBody = table.clone(GravityBody)
 
 	newGravityBody.RootPart = part
-	newGravityBody.Mass = mass
-	newGravityBody.SOIRadius = SOIRadius
+	newGravityBody.Mass = BigMath.toBigNum(mass)
+	newGravityBody.SOIRadius = BigMath.toBigNum(SOIRadius)
 	newGravityBody.ParentGravityBody = OrbitingBody
 	newGravityBody.ChildGravityBodies = {}
 	newGravityBody.ChildSolarSystemPhysicsBodies = {}
@@ -44,28 +47,28 @@ end
 	Returns the standard gravitational parameter.
 	https://en.wikipedia.org/wiki/Standard_gravitational_parameter
 ]=]
-function GravityBody:StandardGravitationalParameter(): number
-	return Constants.GRAVITATIONAL_CONSTANT * self.Mass
+function GravityBody:StandardGravitationalParameter(): Modules.Fraction
+	return (Constants.GRAVITATIONAL_CONSTANT * self.Mass):Reduce()
 end
 
 --[=[
 	Returns the velocity required to orbit this GravityBody.
 ]=]
-function GravityBody:OrbitalVelocity(): number
-	return 0
+function GravityBody:OrbitalVelocity(): Modules.Fraction
+	return error("function not implemented")
 end
 
 --[=[
 	Returns the velocity required to escape the SOI of this GravityBody.
 ]=]
-function GravityBody:EscapeVelocity(): number
-	return 0
+function GravityBody:EscapeVelocity(): Modules.Fraction
+	return error("function not implemented")
 end
 
 --[=[
 	Increments this GravityBody in time, then returns itself.
 ]=]
-function GravityBody:Update(time: number): Modules.GravityBody
+function GravityBody:Update(time: Modules.BigNum | Modules.Fraction | number): Modules.GravityBody
 	if self.Trajectory then
 		-- local nextPosition: Modules.MovingObject = self.Trajectory:CalculatePointFromTime(time)
 		local nextPosition: Modules.TrajectoryObject = self.Trajectory:AtTime(time)
@@ -85,7 +88,7 @@ function GravityBody:Update(time: number): Modules.GravityBody
 		-- print(`updated {self}\n  Position: ({nextPosition.Position})\n  Velocity: ({nextPosition.Velocity})`)
 	end
 
-	return self
+	return error("function not implemented") -- self
 end
 
 return GravityBody

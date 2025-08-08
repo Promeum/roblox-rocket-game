@@ -11,18 +11,24 @@
 	Is the vector multiplication correct? Convert everything to dot products?
 ]]
 
-function Magnitude(v: Vector3): number
-	return math.sqrt(v.X ^ 2 + v.Y ^ 2 + v.Z ^ 2)
-end
+-- function Magnitude(v: Vector3): number
+-- 	return math.sqrt(v.X ^ 2 + v.Y ^ 2 + v.Z ^ 2)
+-- end
 
-function Dot(v1: Vector3, v2: Vector3): number
-	return (v1.X * v2.X) + (v1.Y * v2.Y) + (v1.Z * v2.Z)
-end
+-- function Dot(v1: Vector3, v2: Vector3): number
+-- 	return (v1.X * v2.X) + (v1.Y * v2.Y) + (v1.Z * v2.Z)
+-- end
 
 local Modules = require(game.ReplicatedStorage.Modules.Modules)
--- local Constants = require(game.ReplicatedStorage.Modules.Constants)
+local Constants = require(game.ReplicatedStorage.Modules.Constants)
+local BigNum = require(game.ReplicatedStorage.Modules.Libraries.BigNum)
+local BigMath = require(game.ReplicatedStorage.Modules.BigMath)
+local Vector3B = require(game.ReplicatedStorage.Modules.BaseModuleFolder.Vector3B)
 local MovingObject = require(script.Parent.Parent.Parent.MovingObject)
 local SolarSystemObject = require(script.Parent.Parent.SolarSystemObject)
+
+-- Constants
+local TWO_FRACTION = Constants.TWO_FRACTION
 
 local TrajectoryObject = {}
 
@@ -30,8 +36,8 @@ local TrajectoryObject = {}
 	Creates a new TrajectoryObject instance.
 ]=]
 function TrajectoryObject.new(
-	position: Vector3,
-	velocity: Vector3,
+	position: Modules.Vector3B,
+	velocity: Modules.Vector3B,
 	orbitingBody: Modules.GravityBody?
 ): Modules.TrajectoryObject
 	return TrajectoryObject.from(SolarSystemObject.new(position, velocity), orbitingBody)
@@ -57,36 +63,55 @@ function TrajectoryObject.from(
 	setmetatable(newTrajectoryObject, metatable)
 
 	if newTrajectoryObject.OrbitingBody then
-		local mu: number = newTrajectoryObject.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
-		local r: Vector3 = newTrajectoryObject.Position -- Position vector
-		local rM: number = r.Magnitude -- Position magnitude
-		local v: Vector3 = newTrajectoryObject.Velocity -- Velocity vector
-		local vM: number = v.Magnitude -- Velocity magnitude
+		local mu: Modules.Fraction = newTrajectoryObject.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
+		local r: Modules.Vector3B = newTrajectoryObject.Position -- Position vector
+		local rM: Modules.Fraction = r:Magnitude() -- Position magnitude
+		local v: Modules.Vector3B = newTrajectoryObject.Velocity -- Velocity vector
+		local vM: Modules.Fraction = v:Magnitude() -- Velocity magnitude
 
-		local visVivaSubParameter: number = 2 * mu * (rM ^ -1) - vM ^ 2
+		local visVivaSubParameter: Modules.Fraction = ((Constants.TWO_FRACTION * mu) / rM - BigMath.pow(vM, TWO_FRACTION)):Reduce()
+		print(visVivaSubParameter)
 
-		metatable._OrbitalPeriod = 2 * math.pi * mu * (visVivaSubParameter ^ -1.5)
+		metatable._rxvxr = r:Cross(v):Cross(r)
+		metatable._rxvxv = r:Cross(v):Cross(v)
+		metatable._mu_r_rM_rxvxv = mu * r + rM * metatable._rxvxv
+		metatable._mu_r_rM_rxvxv_magnitude = metatable._mu_r_rM_rxvxv:Magnitude()
+		metatable._2mu_rM_vM_2 = ((2 * mu) / rM - BigMath.pow(vM, 2))
+		metatable._sqrt_abs_2mu_rM_vM_2 = BigMath.sqrt(BigMath.abs(metatable._2mu_rM_vM_2))
+
+		metatable._RecursiveTrueAnomalyHelper = {
+			baseCase = nil,
+			nonBaseCaseFunction = nil
+		}
+
+		metatable._OrbitalPeriod = Constants.TWO_FRACTION * Constants.PI * mu * BigMath.pow(visVivaSubParameter, -1.5)
 
 		metatable._SemiMajorAxis = mu / visVivaSubParameter
 
-		metatable._SemiMinorAxis = Magnitude(r:Cross(v)) / math.sqrt(math.abs(visVivaSubParameter))
+		metatable._SemiMinorAxis = r:Cross(v):Magnitude() / BigMath.sqrt(BigMath.abs(visVivaSubParameter))
 
-		metatable._Eccentricity = Magnitude(mu * r + (rM * r:Cross(v):Cross(v))) / (mu * rM)
+		metatable._Eccentricity = ((mu * r + (rM * metatable._rxvxv)):Magnitude() / (mu * rM)):Reduce()
 
-		metatable._IsBound = newTrajectoryObject:Eccentricity() <= 1
+		metatable._IsBound = newTrajectoryObject:Eccentricity() <= Constants.ONE_FRACTION
 
-		metatable._IsClosed = newTrajectoryObject:Eccentricity() < 1
+		metatable._IsClosed = newTrajectoryObject:Eccentricity() < Constants.ONE_FRACTION
 
-		metatable._TimeToPeriapsis = 0
+		metatable._TimeToPeriapsis = BigNum.newFraction(0, 1)
 
 		metatable._Periapsis = newTrajectoryObject:CalculatePointFromTrueAnomaly(0)
 		assert(metatable._Periapsis, `periapsis is nil ({metatable._Periapsis})`)
 
 		metatable._Apoapsis = if newTrajectoryObject:IsBound()
-			then newTrajectoryObject:CalculatePointFromTrueAnomaly(math.pi)
+			then newTrajectoryObject:CalculatePointFromTrueAnomaly(Constants.PI)
 			else nil
 
-		if newTrajectoryObject:OrbitalPeriod() == newTrajectoryObject:OrbitalPeriod() then
+		print("start test area")
+
+		print(newTrajectoryObject:RecursiveTrueAnomalyHelper(8, BigMath.toFraction("798154.9360516296")))
+
+		print("end test area")
+
+		if newTrajectoryObject:OrbitalPeriod() ~= BigNum.newFraction(0, 0) then
 			metatable._TimeSincePeriapsis = newTrajectoryObject:CalculateTimeFromPoint(newTrajectoryObject.Position, 0)
 			metatable._TimeToPeriapsis = newTrajectoryObject:OrbitalPeriod() - metatable._TimeSincePeriapsis
 		else
@@ -99,7 +124,7 @@ function TrajectoryObject.from(
 			`no time to periapsis!!!!!! ({newTrajectoryObject:TimeToPeriapsis()})`
 		)
 
-		newTrajectoryObject._SpecificOrbitalEnergy = (vM ^ 2 / 2) - (mu / rM)
+		newTrajectoryObject._SpecificOrbitalEnergy = (BigMath.pow(vM, 2) / 2) - (mu / rM)
 	else
 		metatable._IsBound = false
 		metatable._IsClosed = false
@@ -113,7 +138,7 @@ end
 	https://en.wikipedia.org/wiki/Orbital_elements
 ]=]
 function TrajectoryObject:NextTrajectory(): Modules.TrajectoryObject?
-	local timesToSOI: { number } = {}
+	local timesToSOI: { Modules.Fraction } = {}
 	local gravityBodiesIntercepted: { Modules.GravityBody? } = {}
 	local gravityBodies: { Modules.GravityBody? } = {}
 
@@ -122,7 +147,7 @@ function TrajectoryObject:NextTrajectory(): Modules.TrajectoryObject?
 		-- gravityBodies = orbitingBody.ChildGravityBodies -- uncomment when ready
 
 		local escapingSOI: boolean = not self:IsClosed()
-			or (self:Apoapsis() and Magnitude(self:Apoapsis().Position) > orbitingBody.SOIRadius)
+			or (self:Apoapsis() and self:Apoapsis().Position:Magnitude() > BigMath.toFraction(orbitingBody.SOIRadius))
 
 		if escapingSOI then
 			table.insert(timesToSOI, self:CalculateTimeFromMagnitude(orbitingBody.SOIRadius))
@@ -130,13 +155,14 @@ function TrajectoryObject:NextTrajectory(): Modules.TrajectoryObject?
 		end
 		-- error("rthj")
 		if #gravityBodies > 0 then
+			error("Finding a trajectory into an SOI not implemented yet")
 			-- bisection search to find if this trajectory goes in any SOI
 			for i, gravityBodyToTest in ipairs(gravityBodies) do
 				print(`{i}:`)
 				print(gravityBodyToTest)
 
 				-- generate points
-				local maxTimeToSearch: number = 10 ^ 30
+				local maxTimeToSearch: Modules.BigNum = BigNum.new(1e30)
 
 				if escapingSOI then
 					maxTimeToSearch = timesToSOI[1]
@@ -147,7 +173,7 @@ function TrajectoryObject:NextTrajectory(): Modules.TrajectoryObject?
 				-- bisection search
 
 				-- final result?
-				local timeToSOI: number = -1
+				local timeToSOI: Modules.Fraction = BigMath.toFraction(-1)
 
 				-- table.insert(timesToSOI, timeToSOI)
 				-- table.insert(gravityBodiesIntercepted, gravityBodyToTest)
@@ -167,7 +193,7 @@ function TrajectoryObject:NextTrajectory(): Modules.TrajectoryObject?
 				-- bisection search
 
 				-- final result?
-				local timeToSOI: number = -1
+				local timeToSOI: Modules.Fraction = BigMath.toFraction(-1)
 
 				-- table.insert(timesToSOI, timeToSOI)
 				-- table.insert(gravityBodiesIntercepted, gravityBodyToTest)
@@ -177,7 +203,7 @@ function TrajectoryObject:NextTrajectory(): Modules.TrajectoryObject?
 
 	-- look through results
 	if #timesToSOI > 0 then
-		local timeToNearestSOI: number = math.min(table.unpack(timesToSOI))
+		local timeToNearestSOI: Modules.Fraction = BigMath.min(table.unpack(timesToSOI))
 		local nearestSOIBoundary: Modules.GravityBody? = gravityBodiesIntercepted[table.find(
 			timesToSOI,
 			timeToNearestSOI
@@ -199,7 +225,7 @@ end
 	Returns the orbital period.
 	https://en.wikipedia.org/wiki/Orbital_elements
 ]=]
-function TrajectoryObject:OrbitalPeriod(): number
+function TrajectoryObject:OrbitalPeriod(): Modules.Fraction
 	assert(
 		self.OrbitingBody,
 		`TrajectoryObject:OrbitalPeriod() cannot be called on a TrajectoryObject with no OrbitingBody ({self.OrbitingBody})`
@@ -212,7 +238,7 @@ end
 	Should always be positive if orbit is bound. Otherwise, may be negative if past the periapsis (since the orbit is a hyperbola).
 	https://en.wikipedia.org/wiki/Orbital_elements
 ]=]
-function TrajectoryObject:TimeToPeriapsis(): number
+function TrajectoryObject:TimeToPeriapsis(): Modules.Fraction
 	assert(
 		self.OrbitingBody,
 		`TrajectoryObject:TimeToPeriapsis() cannot be called on a TrajectoryObject with no OrbitingBody ({self.OrbitingBody})`
@@ -225,7 +251,7 @@ end
 	Should always be positive if orbit is bound. Otherwise, may be negative if not past the periapsis (since the orbit is a hyperbola).
 	https://en.wikipedia.org/wiki/Orbital_elements
 ]=]
-function TrajectoryObject:TimeSincePeriapsis(): number
+function TrajectoryObject:TimeSincePeriapsis(): Modules.Fraction
 	assert(
 		self.OrbitingBody,
 		`TrajectoryObject:TimeSincePeriapsis() cannot be called on a TrajectoryObject with no OrbitingBody ({self.OrbitingBody})`
@@ -261,7 +287,7 @@ end
 	Returns the semi major axis.
 	https://en.wikipedia.org/wiki/Vis-viva_equation
 ]=]
-function TrajectoryObject:SemiMajorAxis(): number
+function TrajectoryObject:SemiMajorAxis(): Modules.Fraction
 	assert(
 		self.OrbitingBody,
 		`TrajectoryObject:SemiMajorAxis() cannot be called on a TrajectoryObject with no OrbitingBody ({self.OrbitingBody})`
@@ -273,7 +299,7 @@ end
 	Returns the semi minor axis.
 	https://en.wikipedia.org/wiki/Orbital_elements
 ]=]
-function TrajectoryObject:SemiMinorAxis(): number
+function TrajectoryObject:SemiMinorAxis(): Modules.Fraction
 	assert(
 		self.OrbitingBody,
 		`TrajectoryObject:SemiMinorAxis() cannot be called on a TrajectoryObject with no OrbitingBody ({self.OrbitingBody})`
@@ -285,7 +311,7 @@ end
 	Returns the eccentricity.
 	https://en.wikipedia.org/wiki/Eccentricity_vector
 ]=]
-function TrajectoryObject:Eccentricity(): number
+function TrajectoryObject:Eccentricity(): Modules.Fraction
 	assert(
 		self.OrbitingBody,
 		`TrajectoryObject:Eccentricity() cannot be called on a TrajectoryObject with no OrbitingBody ({self.OrbitingBody})`
@@ -313,73 +339,82 @@ end
 	Returns nil if there is no GravityBody being orbited.
 	https://www.desmos.com/3d/rfndgd4ppj
 ]=]
-function TrajectoryObject:RecursiveTrueAnomalyHelper(recursions: number, periapsisRelativeTime: number): number
+function TrajectoryObject:RecursiveTrueAnomalyHelper(recursions: Modules.BigNum | number, periapsisRelativeTime: Modules.BigNum | Modules.Fraction | number): Modules.Fraction
 	assert(
 		self.OrbitingBody,
 		`TrajectoryObject:RecursiveTrueAnomalyHelper() cannot be called on a TrajectoryObject with no OrbitingBody ({self.OrbitingBody})`
 	)
-	assert(periapsisRelativeTime == periapsisRelativeTime, `periapsisrelativetime is nan ({periapsisRelativeTime})`)
-	local mu: number = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
-	local r: Vector3 = self.Position -- Position vector
-	local rM: number = r.Magnitude -- Position magnitude
-	local v: Vector3 = self.Velocity -- Velocity vector
-	local vM: number = v.Magnitude -- Velocity magnitude
-	local t: number = periapsisRelativeTime
+	assert(not BigMath.isNaN(periapsisRelativeTime), `periapsisrelativetime is nan ({periapsisRelativeTime})`)
+	local mu: Modules.Fraction = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
+	local r: Modules.Vector3B = self.Position -- Position vector
+	local rM: Modules.Fraction = r:Magnitude() -- Position magnitude
+	local v: Modules.Vector3B = self.Velocity -- Velocity vector
+	local vM: Modules.Fraction = v:Magnitude() -- Velocity magnitude
+	local t: Modules.Fraction = BigMath.toFraction(periapsisRelativeTime)
+
+	--
+	--
+	--
+	-- TODO: FIX THIS
+	--
+	--
+	--
 
 	if recursions == 0 then -- base case
-		if 2 * mu <= rM * vM ^ 2 then
-			-- print(1)
-			return math.sign(t)
-				* math.sqrt(
-					(math.log(
-								(
-									(2 * rM * math.abs(2 * mu * (rM ^ -1) - vM ^ 2) ^ 1.5 * math.abs(t))
-									/ Magnitude(mu * r + rM * r:Cross(v):Cross(v))
-								) + 1
-							) + 1)
-							^ 2
-						- 1
+		if 2 * mu <= rM * BigMath.pow(vM, 2) then
+			print(1)
+			return BigMath.sign(t)
+				* BigMath.sqrt(
+					BigMath.pow(
+						BigMath.log(
+							(
+								(2 * rM * BigMath.pow(BigMath.abs(getmetatable(self)._2mu_rM_vM_2), 1.5) * BigMath.abs(t))
+								/ getmetatable(self)._mu_r_rM_rxvxv_magnitude
+							) + 1
+						) + 1,
+						2
+					) - 1
 				)
 		elseif
-			(math.pi - 1 + Magnitude(mu * r + rM * r:Cross(v):Cross(v)) / (mu * rM))
-			<= math.abs((((t / mu) * (2 * mu * (rM ^ -1) - vM ^ 2) ^ 1.5) % (2 * math.pi)) - math.pi)
+			(Constants.PI - 1 + getmetatable(self)._mu_r_rM_rxvxv_magnitude / (mu * rM))
+			<= BigMath.abs(BigMath.fmod((t / mu) * BigMath.pow(getmetatable(self)._2mu_rM_vM_2, 1.5), 2 * Constants.PI) - Constants.PI)
 		then
-			-- print(2)
-			return math.pi * (2 * math.round((t / (2 * math.pi * mu)) * math.abs(2 * mu * (rM ^ -1) - vM ^ 2) ^ 1.5))
+			print(2)
+			return Constants.PI * (2 * BigMath.round((t / (2 * Constants.PI * mu)) * BigMath.pow(BigMath.abs(getmetatable(self)._2mu_rM_vM_2), 1.5)))
 		elseif
-			math.abs((((t / mu) * (2 * mu * (rM ^ -1) - vM ^ 2) ^ 1.5) % (2 * math.pi)) - math.pi)
-			<= (1 + Magnitude(mu * r + rM * r:Cross(v):Cross(v)) / (mu * rM))
+			BigMath.abs(BigMath.fmod((t / mu) * BigMath.pow(getmetatable(self)._2mu_rM_vM_2, 1.5), 2 * Constants.PI) - Constants.PI)
+			<= (1 + getmetatable(self)._mu_r_rM_rxvxv_magnitude / (mu * rM))
 		then
-			-- print(3)
-			return math.pi
-				* (2 * math.floor((t / (2 * math.pi * mu)) * math.abs(2 * mu * (rM ^ -1) - vM ^ 2) ^ 1.5) + 1)
+			print(3)
+			return Constants.PI
+				* (2 * BigMath.floor((t / (2 * Constants.PI * mu)) * BigMath.pow(BigMath.abs(getmetatable(self)._2mu_rM_vM_2), 1.5)) + 1)
 		else
-			-- print(4)
-			return math.pi * (math.floor((t / (math.pi * mu)) * math.abs(2 * mu * (rM ^ -1) - vM ^ 2) ^ 1.5) + 0.5)
+			print(4)
+			return Constants.PI * (BigMath.floor((t / (Constants.PI * mu)) * BigMath.pow(BigMath.abs(getmetatable(self)._2mu_rM_vM_2), 1.5)) + 0.5)
 		end
 	else -- non-base case
 		local prevRecursion = self:RecursiveTrueAnomalyHelper(recursions - 1, periapsisRelativeTime)
-		assert(prevRecursion == prevRecursion, `prevRecursion is nan ({prevRecursion})`)
+		assert(not BigMath.isNaN(prevRecursion), `prevRecursion is nan ({prevRecursion})`)
 
-		-- print(`recursion {recursions - 1}`)
-		-- print(prevRecursion)
+		print(`recursion {recursions - 1}`)
+		print(prevRecursion)
 
-		if 2 * mu <= rM * vM ^ 2 then
+		if 2 * mu <= rM * BigMath.pow(vM, 2) then
 			return prevRecursion
 				+ (
-						rM * (math.abs(2 * mu * (rM ^ -1) - vM ^ 2) ^ 1.5) * t
+						rM * BigMath.pow(BigMath.abs(getmetatable(self)._2mu_rM_vM_2), 1.5) * t
 						+ mu * rM * prevRecursion
-						- math.sinh(prevRecursion) * Magnitude(mu * r + rM * r:Cross(v):Cross(v))
+						- BigMath.sinh(prevRecursion) * getmetatable(self)._mu_r_rM_rxvxv_magnitude
 					)
-					/ (math.cosh(prevRecursion) * Magnitude(mu * r + rM * r:Cross(v):Cross(v)) - mu * rM)
+					/ (BigMath.cosh(prevRecursion) * getmetatable(self)._mu_r_rM_rxvxv_magnitude - mu * rM)
 		else
 			return prevRecursion
 				+ (
-						rM * ((2 * mu * (rM ^ -1) - vM ^ 2) ^ 1.5) * t
+						rM * BigMath.pow(getmetatable(self)._2mu_rM_vM_2, 1.5) * t
 						- mu * rM * prevRecursion
-						+ math.sin(prevRecursion) * Magnitude(mu * r + rM * r:Cross(v):Cross(v))
+						+ BigMath.sin(prevRecursion) * getmetatable(self)._mu_r_rM_rxvxv_magnitude
 					)
-					/ (-math.cos(prevRecursion) * Magnitude(mu * r + rM * r:Cross(v):Cross(v)) + mu * rM)
+					/ (-BigMath.cos(prevRecursion) * getmetatable(self)._mu_r_rM_rxvxv_magnitude + mu * rM)
 		end
 	end -- ...should i be concerned about performance issues
 end
@@ -390,51 +425,54 @@ end
 	https://en.wikipedia.org/wiki/True_anomaly
 	https://www.desmos.com/3d/rfndgd4ppj
 ]=]
-function TrajectoryObject:CalculateTrueAnomalyFromTime(relativeTime: number): number
+function TrajectoryObject:CalculateTrueAnomalyFromTime(relativeTime: Modules.BigNum | Modules.Fraction | number): Modules.Fraction
 	assert(
 		self.OrbitingBody,
 		`TrajectoryObject:CalculateTrueAnomalyFromTime() cannot be called on a TrajectoryObject with no OrbitingBody ({self.OrbitingBody})`
 	)
-	local mu: number = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
-	local r: Vector3 = self.Position -- Position vector
-	local rM: number = r.Magnitude -- Position magnitude
-	local v: Vector3 = self.Velocity -- Velocity vector
-	local vM: number = v.Magnitude -- Velocity magnitude
-	local timeFromPeriapsis: number
+	local mu: Modules.Fraction = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
+	local r: Modules.Vector3B = self.Position -- Position vector
+	local rM: Modules.Fraction = r:Magnitude() -- Position magnitude
+	local v: Modules.Vector3B = self.Velocity -- Velocity vector
+	local vM: Modules.Fraction = v:Magnitude() -- Velocity magnitude
+	local timeFromPeriapsis: Modules.Fraction
 	if self:OrbitalPeriod() == self:OrbitalPeriod() then
 		timeFromPeriapsis = self:OrbitalPeriod() - self:TimeToPeriapsis()
 	else
 		timeFromPeriapsis = -self:TimeToPeriapsis()
 	end
 
-	local periapsisRelativeTime: number = -timeFromPeriapsis + relativeTime
+	local periapsisRelativeTime: Modules.Fraction = -timeFromPeriapsis + relativeTime
 
 	local TrueAnomalyHelperResult = self:RecursiveTrueAnomalyHelper(8, periapsisRelativeTime)
 	assert(
-		TrueAnomalyHelperResult == TrueAnomalyHelperResult,
+		not BigMath.isNaN(TrueAnomalyHelperResult),
 		`TrueAnomalyHelperResult is nan ({TrueAnomalyHelperResult})`
 	)
 
-	if (rM * vM ^ 2) < (2 * mu) then --self:IsClosed() then -- orbit is not hyperbolic, eccentricity < 1
-		return (
-			2
-				* math.pi
-				* math.ceil(
-					(math.abs(2 * mu * (rM ^ -1) - vM ^ 2) ^ 1.5) * (periapsisRelativeTime / (2 * mu * math.pi)) - 0.5
-				)
-			+ 2
-				* math.atan(
-					(mu * rM + Magnitude(mu * r + rM * r:Cross(v):Cross(v)))
-						/ (rM * math.sqrt(math.abs(2 * mu * (rM ^ -1) - vM ^ 2)) * Magnitude(r:Cross(v)))
-						* math.tan(0.5 * TrueAnomalyHelperResult)
-				)
-		) % (2 * math.pi)
+	if (rM * BigMath.pow(vM, 2)) < (2 * mu) then --self:IsClosed() then -- orbit is not hyperbolic, eccentricity < 1
+		return BigMath.fmod(
+			(
+				2
+					* Constants.PI
+					* BigMath.ceil(
+						BigMath.pow(BigMath.abs(getmetatable(self)._2mu_rM_vM_2), 1.5) * (periapsisRelativeTime / (2 * mu * Constants.PI)) - 0.5
+					)
+				+ 2
+					* BigMath.atan(
+						(mu * rM + getmetatable(self)._mu_r_rM_rxvxv_magnitude)
+							/ (rM * getmetatable(self)._sqrt_abs_2mu_rM_vM_2 * r:Cross(v):Magnitude())
+							* BigMath.tan(0.5 * TrueAnomalyHelperResult)
+					)
+			),
+			2 * Constants.PI
+		)
 	else -- orbit is hyperbolic, eccentricity >= 1
 		return 2
-			* math.atan(
-				(mu * rM + Magnitude(mu * r + rM * r:Cross(v):Cross(v)))
-					/ (rM * math.sqrt(math.abs(2 * mu * (rM ^ -1) - vM ^ 2)) * Magnitude(r:Cross(v)))
-					* math.tanh(0.5 * TrueAnomalyHelperResult)
+			* BigMath.atan(
+				(mu * rM + getmetatable(self)._mu_r_rM_rxvxv_magnitude)
+					/ (rM * getmetatable(self)._sqrt_abs_2mu_rM_vM_2 * r:Cross(v):Magnitude())
+					* BigMath.tanh(0.5 * TrueAnomalyHelperResult)
 			)
 	end -- ...should i be concerned about performance issues
 end
@@ -445,61 +483,59 @@ end
 	https://en.wikipedia.org/wiki/True_anomaly
 	https://www.desmos.com/3d/rfndgd4ppj
 ]=]
-function TrajectoryObject:CalculatePointFromTrueAnomaly(trueAnomaly: number): Modules.MovingObject
+function TrajectoryObject:CalculatePointFromTrueAnomaly(trueAnomaly: Modules.BigNum | Modules.Fraction | number): Modules.MovingObject
 	assert(
 		self.OrbitingBody,
 		`TrajectoryObject:CalculatePointFromTrueAnomaly() cannot be called on a TrajectoryObject with no OrbitingBody ({self.OrbitingBody})`
 	)
-	local mu: number = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
-	local r: Vector3 = self.Position -- Position vector
-	local rM: number = r.Magnitude -- Position magnitude
-	local v: Vector3 = self.Velocity -- Velocity vector
-	local vM: number = v.Magnitude -- Velocity magnitude
+	local mu: Modules.Fraction = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
+	local r: Modules.Vector3B = self.Position -- Position vector
+	local rM: Modules.Fraction = r:Magnitude() -- Position magnitude
+	local v: Modules.Vector3B = self.Velocity -- Velocity vector
+	local vM: Modules.Fraction = v:Magnitude() -- Velocity magnitude
 
 	if self:Eccentricity() == 0 then -- orbit is a circle
 		return MovingObject.new(
-			((math.sin(trueAnomaly) * r:Cross(v):Cross(r)) + (math.cos(trueAnomaly) * Magnitude(r:Cross(v)) * r))
-				/ Magnitude(r:Cross(v)),
-			((math.cos(trueAnomaly) * r:Cross(v):Cross(r)) - (math.sin(trueAnomaly) * Magnitude(r:Cross(v)) * r))
-				/ (rM * Magnitude(r:Cross(v)))
+			((BigMath.sin(trueAnomaly) * getmetatable(self)._rxvxr) + (BigMath.cos(trueAnomaly) * r:Cross(v):Magnitude() * r))
+				/ r:Cross(v):Magnitude(),
+			((BigMath.cos(trueAnomaly) * getmetatable(self)._rxvxr) - (BigMath.sin(trueAnomaly) * r:Cross(v):Magnitude() * r))
+				/ (rM * r:Cross(v):Magnitude())
 				* vM
 		)
 	elseif
 		self:IsClosed()
 		or ( -- check range of true anomaly of hyperbolic orbit
 			not self:IsClosed()
-			and -math.acos(-(mu * rM) / Magnitude(mu * r + rM * r:Cross(v):Cross(v))) < math.abs(trueAnomaly) % (2 * math.pi) * math.sign(
+			and -BigMath.acos(-(mu * rM) / getmetatable(self)._mu_r_rM_rxvxv_magnitude) < BigMath.fmod(BigMath.abs(trueAnomaly), (2 * Constants.PI)) * BigMath.sign(
 				trueAnomaly
 			)
-			and math.abs(trueAnomaly) % (2 * math.pi) * math.sign(trueAnomaly)
-				< math.acos(-(mu * rM) / Magnitude(mu * r + rM * r:Cross(v):Cross(v)))
+			and BigMath.fmod(BigMath.abs(trueAnomaly), 2 * Constants.PI) * BigMath.sign(trueAnomaly)
+				< BigMath.acos(-(mu * rM) / getmetatable(self)._mu_r_rM_rxvxv_magnitude)
 		)
 	then -- orbit is any other conic section
 		-- note: for velocity, the mu that multiplies with the entire fraction was moved to denominator to counter floating point errors (the big fraction should not end up as (0,0,0))
 		-- another note: really think about implementing arbitrary-precision arithmetic
 		return MovingObject.new(
-			(Magnitude(r:Cross(v)) * rM)
-				/ (-Magnitude(mu * r + rM * r:Cross(v):Cross(v)) * (math.cos(trueAnomaly) * Magnitude(
-					mu * r + rM * r:Cross(v):Cross(v)
-				) + mu * rM))
+			(r:Cross(v):Magnitude() * rM)
+				/ (-getmetatable(self)._mu_r_rM_rxvxv_magnitude * (BigMath.cos(trueAnomaly) * getmetatable(self)._mu_r_rM_rxvxv_magnitude + mu * rM))
 				* (
-					(math.sin(trueAnomaly) * (mu * r:Cross(v):Cross(r) - rM * Magnitude(r:Cross(v)) ^ 2 * v))
-					+ (math.cos(trueAnomaly) * Magnitude(r:Cross(v)) * (mu * r + rM * r:Cross(v):Cross(v)))
+					(BigMath.sin(trueAnomaly) * (mu * getmetatable(self)._rxvxr - rM * BigMath.pow(r:Cross(v):Magnitude(), 2) * v))
+					+ (BigMath.cos(trueAnomaly) * r:Cross(v):Magnitude() * getmetatable(self)._mu_r_rM_rxvxv)
 				),
 			(
 				(
-					-(math.cos(trueAnomaly) * (mu * r:Cross(v):Cross(r) - rM * Magnitude(r:Cross(v)) ^ 2 * v))
-					+ (math.sin(trueAnomaly) * Magnitude(r:Cross(v)) * (mu * r + rM * r:Cross(v):Cross(v)))
-				) / ((Magnitude(r:Cross(v)) ^ 2) * Magnitude(mu * r + rM * r:Cross(v):Cross(v)) / mu)
+					-(BigMath.cos(trueAnomaly) * (mu * getmetatable(self)._rxvxr - rM * BigMath.pow(r:Cross(v):Magnitude(), 2) * v))
+					+ (BigMath.sin(trueAnomaly) * r:Cross(v):Magnitude() * (getmetatable(self)._mu_r_rM_rxvxv))
+				) / (BigMath.pow(r:Cross(v):Magnitude(), 2) * getmetatable(self)._mu_r_rM_rxvxv_magnitude / mu)
 			)
-				- ((mu * r:Cross(v):Cross(r)) / ((Magnitude(r:Cross(v)) ^ 2) * rM))
+				- ((mu * getmetatable(self)._rxvxr) / (BigMath.pow(r:Cross(v):Magnitude(), 2) * rM))
 				+ v
 		) -- ...should i be concerned about performance issues
 	else -- true anomaly is out of range of hyperbolic orbit
 		return error(
-			`CalculatePointFromTrueAnomaly Invalid angle\n(min: {-math.acos(
-				-(mu * rM) / Magnitude(mu * r + rM * r:Cross(v):Cross(v))
-			)})\n(max: {math.acos(-(mu * rM) / Magnitude(mu * r + rM * r:Cross(v):Cross(v)))})`
+			`CalculatePointFromTrueAnomaly Invalid angle\n(min: {-BigMath.acos(
+				-(mu * rM) / getmetatable(self)._mu_r_rM_rxvxv_magnitude
+			)})\n(max: {BigMath.acos(-(mu * rM) / getmetatable(self)._mu_r_rM_rxvxv_magnitude)})`
 		)
 	end
 end
@@ -510,15 +546,15 @@ end
 
 	@param relativeTime The time passed since the location of this TrajectoryObject.
 ]=]
-function TrajectoryObject:CalculatePointFromTime(relativeTime: number): Modules.MovingObject
+function TrajectoryObject:CalculatePointFromTime(relativeTime: Modules.BigNum | Modules.Fraction | number): Modules.MovingObject
 	if self.OrbitingBody then
 		local trueAnomalyAngle = self:CalculateTrueAnomalyFromTime(relativeTime)
 		assert(
-			typeof(trueAnomalyAngle) == "number" and trueAnomalyAngle == trueAnomalyAngle,
+			not BigMath.isNaN(trueAnomalyAngle),
 			`trueAnomalyAngle is nan ({trueAnomalyAngle})`
 		)
 		local resultPoint = self:CalculatePointFromTrueAnomaly(trueAnomalyAngle)
-		assert(resultPoint == resultPoint, `resultPoint is nan ({resultPoint})`)
+		assert(not BigMath.isNaN(resultPoint), `resultPoint is nan ({resultPoint})`)
 
 		-- if self.OrbitingBody.SOIRadius > 88e6 then -- check the moon
 		-- 	print("testing")
@@ -541,108 +577,116 @@ end
 	@param position The given point. Does not have to be a point on the trajectory.
 	@return Returns the true anomaly angle in radians, or nil if there is no GravityBody being orbited.
 ]=]
-function TrajectoryObject:CalculateTrueAnomalyFromPoint(position: Vector3): number
+function TrajectoryObject:CalculateTrueAnomalyFromPoint(position: Modules.Vector3B): Modules.Fraction
 	assert(
 		self.OrbitingBody,
 		`TrajectoryObject:CalculateTrueAnomalyFromPoint() cannot be called on a TrajectoryObject with no OrbitingBody ({self.OrbitingBody})`
 	)
-	local mu: number = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
-	local r: Vector3 = self.Position -- Position vector
-	local rM: number = r.Magnitude -- Position magnitude
-	local v: Vector3 = self.Velocity -- Velocity vector
+	local mu: Modules.Fraction = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
+	local r: Modules.Vector3B = self.Position -- Position vector
+	local rM: Modules.Fraction = r:Magnitude() -- Position magnitude
+	-- local v: Modules.Vector3B = self.Velocity -- Velocity vector
 
-	local greaterAnomaly: number
-	local lesserAnomaly: number
-	local greaterPoint: Vector3
-	local lesserPoint: Vector3
+	local greaterAnomaly: Modules.Fraction
+	local lesserAnomaly: Modules.Fraction
+	local greaterPoint: Modules.Vector3B
+	local lesserPoint: Modules.Vector3B
 
-	--
-	if self:IsClosed() then -- find the quadrant of the point and get the two points at the axes lines bordering that quadrant (search range: 0 -> 2 * math.pi)
-		local up: Vector3 = self:CalculatePointFromTrueAnomaly(math.pi).Position
-		local down: Vector3 = self:CalculatePointFromTrueAnomaly(0).Position
-		local left: Vector3 = self:CalculatePointFromTrueAnomaly(3 * math.pi / 2).Position
-		local right: Vector3 = self:CalculatePointFromTrueAnomaly(math.pi / 2).Position
+	if self:IsClosed() then -- find the quadrant of the point and get the two points at the axes lines bordering that quadrant (search range: 0 -> 2 * pi)
+		local up: Modules.Vector3B = self:CalculatePointFromTrueAnomaly(math.pi).Position
+		local down: Modules.Vector3B = self:CalculatePointFromTrueAnomaly(0).Position
+		local left: Modules.Vector3B = self:CalculatePointFromTrueAnomaly(3 * math.pi / 2).Position
+		local right: Modules.Vector3B = self:CalculatePointFromTrueAnomaly(math.pi / 2).Position
 
-		if Magnitude(up - position) < Magnitude(down - position) then
-			if Magnitude(left - position) < Magnitude(right - position) then
-				greaterAnomaly = 3 * math.pi / 2
-				lesserAnomaly = math.pi
+		if (up - position):Magnitude() < (down - position):Magnitude() then
+			if (left - position):Magnitude() < (right - position):Magnitude() then
+				greaterAnomaly = BigMath.toFraction(3 * math.pi / 2)
+				lesserAnomaly = Constants.PI
 				greaterPoint = left
 				lesserPoint = up
 			else
-				greaterAnomaly = math.pi
-				lesserAnomaly = math.pi / 2
+				greaterAnomaly = Constants.PI
+				lesserAnomaly = BigMath.toFraction(math.pi / 2)
 				greaterPoint = up
 				lesserPoint = right
 			end
 		else
-			lesserAnomaly = 0
+			lesserAnomaly = Constants.ZERO_FRACTION
 			lesserPoint = down
-			if Magnitude(left - position) < Magnitude(right - position) then
-				greaterAnomaly = 3 * math.pi / 2
+			if (left - position):Magnitude() < (right - position):Magnitude() then
+				greaterAnomaly = BigMath.toFraction(3 * math.pi / 2)
 				greaterPoint = left
 			else
-				greaterAnomaly = math.pi / 2
+				greaterAnomaly = BigMath.toFraction(math.pi / 2)
 				greaterPoint = right
 			end
 		end
-	else -- get the two points defining the range of true anomaly of hyperbolic orbit (search range: -(x < math.pi) -> (x < math.pi))
-		greaterAnomaly = math.acos(-(mu * rM) / Magnitude(mu * r + rM * r:Cross(v):Cross(v))) - 2.24e-16
+	else -- get the two points defining the range of true anomaly of hyperbolic orbit (search range: -(x < pi) -> (x < pi))
+		greaterAnomaly = BigMath.acos(-(mu * rM) / getmetatable(self)._mu_r_rM_rxvxv_magnitude) -- - 2.24e-16
 		greaterPoint = self:CalculatePointFromTrueAnomaly(greaterAnomaly).Position
-		lesserAnomaly = -math.acos(-(mu * rM) / Magnitude(mu * r + rM * r:Cross(v):Cross(v))) + 2.24e-16
+		lesserAnomaly = -BigMath.acos(-(mu * rM) / getmetatable(self)._mu_r_rM_rxvxv_magnitude) -- + 2.24e-16
 		lesserPoint = self:CalculatePointFromTrueAnomaly(lesserAnomaly).Position
 	end
 
 	-- Bisection search for true anomaly, check distance by converting anomaly to point and compare with position
-	local middleAnomaly: number = (greaterAnomaly + lesserAnomaly) / 2
-	local middleAnomalyPoint: Vector3 = self:CalculatePointFromTrueAnomaly(middleAnomaly).Position
+	local middleAnomaly: Modules.Fraction = ((greaterAnomaly + lesserAnomaly) / 2):Reduce()
+	local middleAnomalyPoint: Modules.Vector3B = self:CalculatePointFromTrueAnomaly(middleAnomaly).Position
 	local anomalySearchIteration: number = 1
 
 	repeat
+		task.wait(0)
 		-- Vector math for comparing the target point and middleAnomalyPoint
-		local transformedGreaterPoint: Vector3 = greaterPoint - lesserPoint -- transformedLesserPoint is (0, 0, 0)
-		local transformedTargetPoint: Vector3 = position - lesserPoint
-		local transformedmiddleAnomalyPoint: Vector3 = middleAnomalyPoint - lesserPoint
-		local referenceAxis: Vector3 = transformedGreaterPoint / Magnitude(transformedGreaterPoint) -- get the unit axis vector
+		local transformedGreaterPoint: Modules.Vector3B = greaterPoint - lesserPoint -- transformedLesserPoint is (0, 0, 0)
+		local transformedTargetPoint: Modules.Vector3B = position - lesserPoint
+		local transformedmiddleAnomalyPoint: Modules.Vector3B = middleAnomalyPoint - lesserPoint
+		local referenceAxis: Modules.Vector3B = transformedGreaterPoint / transformedGreaterPoint:Magnitude() -- get the unit axis vector
 
 		-- Project the two points onto the reference axis with dot product
-		local projectedTargetPoint: Vector3 = referenceAxis * Dot(transformedTargetPoint, referenceAxis)
-		local projectedmiddleAnomalyPoint: Vector3 = referenceAxis * Dot(transformedmiddleAnomalyPoint, referenceAxis)
+		local projectedTargetPoint: Modules.Vector3B = referenceAxis * transformedTargetPoint:Dot(referenceAxis)
+		local projectedmiddleAnomalyPoint: Modules.Vector3B = referenceAxis * transformedmiddleAnomalyPoint:Dot(referenceAxis)
 
 		-- Generate a 'number line' position along the reference axis for the two points
-		local targetPointPosition: number = Dot(projectedTargetPoint, referenceAxis)
-		local middleAnomalyPosition: number = Dot(projectedmiddleAnomalyPoint, referenceAxis)
+		local targetPointPosition: Modules.Fraction = projectedTargetPoint:Dot(referenceAxis)
+		local middleAnomalyPosition: Modules.Fraction = projectedmiddleAnomalyPoint:Dot(referenceAxis)
 
 		if targetPointPosition > middleAnomalyPosition then -- move lesser angle up
 			lesserAnomaly = middleAnomaly
 			lesserPoint = self:CalculatePointFromTrueAnomaly(lesserAnomaly).Position
 		else --elseif targetPointPosition < middleAnomalyPosition then -- move greater angle down
-			greaterAnomaly -= middleAnomaly - lesserAnomaly
+			greaterAnomaly = (greaterAnomaly - (middleAnomaly - lesserAnomaly)):Reduce()
 			greaterPoint = self:CalculatePointFromTrueAnomaly(greaterAnomaly).Position
 		end
 		-- else -- shortcut in case angle of target point is directly in the middle of lesser and greater angles -- doesnt work due to inaccurate floating point
 		-- 	return middleAnomaly
 		-- end
 
-		middleAnomaly = (greaterAnomaly + lesserAnomaly) / 2
+		middleAnomaly = ((greaterAnomaly + lesserAnomaly) / 2):Reduce()
 		middleAnomalyPoint = self:CalculatePointFromTrueAnomaly(middleAnomaly).Position
-		print(`iteration {anomalySearchIteration}`)
-		print(greaterAnomaly)
-		print(middleAnomaly)
-		print(lesserAnomaly)
+		-- print(`iteration {anomalySearchIteration}`)
+		-- print(greaterAnomaly)
+		-- print(middleAnomaly)
+		-- print(lesserAnomaly)
 		-- assert(middleAnomaly ~= nil, `middleAnomalyPoint has errored ({middleAnomalyPoint})`)
 		-- ...should i be concerned about performance issues
 
-		assert(
-			anomalySearchIteration <= 100,
-			`Anomaly iterative search taking too long, concluded at {math.min(
-				Magnitude(greaterPoint - position),
-				Magnitude(lesserPoint - position)
-			)} distance from target`
-		)
+		if anomalySearchIteration > 30 then
+			print(greaterAnomaly)
+			print(lesserAnomaly)
+			print(middleAnomaly)
+			print(position)
+			print(greaterPoint)
+			print(lesserPoint)
+			assert(
+				anomalySearchIteration <= 30,
+				`Anomaly iterative search taking too long, concluded at {BigMath.min(
+					(greaterPoint - position):Magnitude(),
+					(lesserPoint - position):Magnitude()
+				)} distance from target`
+			)
+		end
 
 		anomalySearchIteration += 1
-	until (greaterAnomaly - lesserAnomaly) < (2 ^ -50) or Magnitude(middleAnomalyPoint - position) == 0
+	until (greaterAnomaly - lesserAnomaly) < BigMath.toFraction(2 ^ -50) or (middleAnomalyPoint - position):Magnitude() == Constants.ZERO_FRACTION
 	print(`trueAnomaly calc finished at {anomalySearchIteration} iterations`)
 	print(middleAnomaly)
 	return middleAnomaly
@@ -654,44 +698,44 @@ end
 
 	@param trueAnomaly The angle of true anomaly. Can be any value.
 ]=]
-function TrajectoryObject:CalculateTimeFromPeriapsis(trueAnomaly: number): number
+function TrajectoryObject:CalculateTimeFromPeriapsis(trueAnomaly: Modules.BigNum | Modules.Fraction | number): Modules.Fraction
 	assert(
 		self.OrbitingBody,
 		`TrajectoryObject:CalculateTimeFromTrueAnomaly() cannot be called on a TrajectoryObject with no OrbitingBody ({self.OrbitingBody})`
 	)
-	local mu: number = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
-	local r: Vector3 = self.Position -- Position vector
-	local rM: number = r.Magnitude -- Position magnitude
-	local v: Vector3 = self.Velocity -- Velocity vector
-	local vM: number = v.Magnitude -- Velocity magnitude
+	local mu: Modules.Fraction = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
+	local r: Modules.Vector3B = self.Position -- Position vector
+	local rM: Modules.Fraction = r:Magnitude() -- Position magnitude
+	local v: Modules.Vector3B = self.Velocity -- Velocity vector
+	local vM: Modules.Fraction = v:Magnitude() -- Velocity magnitude
 
 	assert(
-		self:IsClosed() == (((vM ^ 2) * rM) < (2 * mu)),
-		`{self:IsClosed()} not equal to {((vM ^ 2) * rM) < (2 * mu)} (Eccectricity: {self:Eccentricity()})`
+		self:IsClosed() == ((BigMath.pow(vM, 2) * rM) < (2 * mu)),
+		`{self:IsClosed()} not equal to {(BigMath.pow(vM, 2) * rM) < (2 * mu)} (Eccectricity: {self:Eccentricity()})`
 	)
 
 	if self:IsClosed() then -- Orbit is circular / elliptic
-		return (-Magnitude(r:Cross(v)) * Magnitude(mu * r + rM * r:Cross(v):Cross(v)) * math.sin(trueAnomaly))
-				/ ((2 * mu * (rM ^ -1) - vM ^ 2) * (Magnitude(mu * r + rM * r:Cross(v):Cross(v)) * math.cos(trueAnomaly) + mu * rM))
-			+ (mu * math.sqrt(math.abs(2 * mu * (rM ^ -1) - vM ^ 2)) ^ -3)
-				* (2 * math.pi * math.ceil(trueAnomaly / (2 * math.pi) - 0.5) - 2 * math.atan(
-					(Magnitude(mu * r + rM * r:Cross(v):Cross(v)) - mu * rM)
-						/ (Magnitude(r:Cross(v)) * rM * math.sqrt(math.abs(2 * mu * (rM ^ -1) - vM ^ 2)))
-						* math.tan(trueAnomaly / 2)
+		return (-r:Cross(v):Magnitude() * getmetatable(self)._mu_r_rM_rxvxv_magnitude * BigMath.sin(trueAnomaly))
+				/ ((getmetatable(self)._2mu_rM_vM_2) * (getmetatable(self)._mu_r_rM_rxvxv_magnitude * BigMath.cos(trueAnomaly) + mu * rM))
+			+ (mu * BigMath.pow(getmetatable(self)._sqrt_abs_2mu_rM_vM_2, -3))
+				* (2 * Constants.PI * BigMath.ceil(trueAnomaly / (2 * Constants.PI) - 0.5) - 2 * BigMath.atan(
+					(getmetatable(self)._mu_r_rM_rxvxv_magnitude - mu * rM)
+						/ (r:Cross(v):Magnitude() * rM * getmetatable(self)._sqrt_abs_2mu_rM_vM_2)
+						* BigMath.tan(trueAnomaly / 2)
 				))
 	else -- Orbit is parabolic / hyperbolic
-		return (-Magnitude(r:Cross(v)) * Magnitude(mu * r + rM * r:Cross(v):Cross(v)) * math.sin(trueAnomaly))
-				/ ((2 * mu * (rM ^ -1) - vM ^ 2) * (Magnitude(mu * r + rM * r:Cross(v):Cross(v)) * math.cos(trueAnomaly) + mu * rM))
-			+ (mu * math.sqrt(math.abs(2 * mu * (rM ^ -1) - vM ^ 2)) ^ -3)
-				* (-math.log(
-					(Magnitude(mu * r + rM * r:Cross(v):Cross(v)) * math.cos(trueAnomaly) + mu * rM)
+		return (-r:Cross(v):Magnitude() * getmetatable(self)._mu_r_rM_rxvxv_magnitude * BigMath.sin(trueAnomaly))
+				/ ((getmetatable(self)._2mu_rM_vM_2) * (getmetatable(self)._mu_r_rM_rxvxv_magnitude * BigMath.cos(trueAnomaly) + mu * rM))
+			+ (mu * BigMath.pow(getmetatable(self)._sqrt_abs_2mu_rM_vM_2, -3))
+				* (-BigMath.log(
+					(getmetatable(self)._mu_r_rM_rxvxv_magnitude * BigMath.cos(trueAnomaly) + mu * rM)
 						/ (
-							Magnitude(mu * r + rM * r:Cross(v):Cross(v))
-							+ mu * rM * math.cos(trueAnomaly)
-							- math.sin(trueAnomaly)
+							getmetatable(self)._mu_r_rM_rxvxv_magnitude
+							+ mu * rM * BigMath.cos(trueAnomaly)
+							- BigMath.sin(trueAnomaly)
 								* rM
-								* Magnitude(r:Cross(v))
-								* math.sqrt(math.abs(2 * mu * (rM ^ -1) - vM ^ 2))
+								* r:Cross(v):Magnitude()
+								* getmetatable(self)._sqrt_abs_2mu_rM_vM_2
 						)
 				))
 	end
@@ -702,16 +746,15 @@ end
 	https://www.desmos.com/3d/rfndgd4ppj
 
 	@param trueAnomaly The end angle of true anomaly. Can be any value.
-	@param referenceTrueAnomaly The start angle of true anomaly. If not provided, defaults to the current true anomaly (between 0 and 2 * math.pi).
+	@param referenceTrueAnomaly The start angle of true anomaly. If not provided, defaults to the current true anomaly (between 0 and 2 * pi).
 	@return Returns a value, in seconds, representing the length of time to go from trueAnomaly to referenceTrueAnomaly. Can be negative if the current orbit is a hyperbola.
 ]=]
-function TrajectoryObject:CalculateTimeFromTrueAnomaly(trueAnomaly: number, referenceTrueAnomaly: number?): number
+function TrajectoryObject:CalculateTimeFromTrueAnomaly(trueAnomaly: Modules.BigNum | Modules.Fraction | number, referenceTrueAnomaly: Modules.BigNum | Modules.Fraction | number?): Modules.Fraction
 	assert(
 		self.OrbitingBody,
 		`TrajectoryObject:CalculateTimeFromTrueAnomaly() cannot be called on a TrajectoryObject with no OrbitingBody ({self.OrbitingBody})`
 	)
-	local adjustedReferenceTrueAnomaly: number = referenceTrueAnomaly
-		or self:CalculateTrueAnomalyFromPoint(self.Position)
+	local adjustedReferenceTrueAnomaly: Modules.Fraction = if referenceTrueAnomaly then BigMath.toFraction(referenceTrueAnomaly) else self:CalculateTrueAnomalyFromPoint(self.Position)
 
 	return self:CalculateTimeFromPeriapsis(trueAnomaly) - self:CalculateTimeFromPeriapsis(adjustedReferenceTrueAnomaly)
 end
@@ -722,16 +765,16 @@ end
 	https://www.desmos.com/3d/rfndgd4ppj
 
 	@param position The position to be reached (may have already been reached if the current orbit is hyperbolic).
-	@param referenceTrueAnomaly The refernce angle of true anomaly. If not provided, defaults to the current true anomaly (between 0 and 2 * math.pi).
+	@param referenceTrueAnomaly The refernce angle of true anomaly. If not provided, defaults to the current true anomaly (between 0 and 2 * pi).
 ]=]
 function TrajectoryObject:CalculateTimeFromPoint(
-	position: Vector3,
-	referenceTrueAnomaly: number?
-): number -- Need to implement looking in the past for hyperbolic orbits!
+	position: Modules.Vector3B,
+	referenceTrueAnomaly: Modules.BigNum | Modules.Fraction | number?
+): Modules.Fraction -- Need to implement looking in the past for hyperbolic orbits!
 	if self.OrbitingBody then
 		local trueAnomalyAngle = self:CalculateTrueAnomalyFromPoint(position)
 		assert(
-			trueAnomalyAngle ~= nil and trueAnomalyAngle == trueAnomalyAngle,
+			trueAnomalyAngle ~= BigNum.newFraction(0, 0),
 			`trueAnomalyAngle is invalid ({trueAnomalyAngle})`
 		)
 
@@ -746,59 +789,59 @@ end
 	https://www.desmos.com/3d/rfndgd4ppj
 
 	@param magnitude
-	@return Returns the true anomaly angle in radians within 0 and math.pi, or nil if there is no GravityBody being orbited.
+	@return Returns the true anomaly angle in radians within 0 and pi, or nil if there is no GravityBody being orbited.
 ]=]
-function TrajectoryObject:CalculateTrueAnomalyFromMagnitude(magnitude: number): number
+function TrajectoryObject:CalculateTrueAnomalyFromMagnitude(magnitude: Modules.BigNum | Modules.Fraction | number): Modules.Fraction
 	assert(
 		self.OrbitingBody,
 		`TrajectoryObject:CalculateTrueAnomalyFromMagnitude() cannot be called on a TrajectoryObject with no OrbitingBody ({self.OrbitingBody})`
 	)
-	local mu: number = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
-	local r: Vector3 = self.Position -- Position vector
-	local rM: number = r.Magnitude -- Position magnitude
-	local v: Vector3 = self.Velocity -- Velocity vector
+	local mu: Modules.Fraction = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
+	local r: Modules.Vector3B = self.Position -- Position vector
+	local rM: Modules.Fraction = r:Magnitude() -- Position magnitude
+	-- local v: Modules.Vector3B = self.Velocity -- Velocity vector
 
-	local greaterAnomaly: number
-	local lesserAnomaly: number
-	local greaterMagnitude: number
-	local lesserMagnitude: number
+	local greaterAnomaly: Modules.Fraction
+	local lesserAnomaly: Modules.Fraction
+	local greaterMagnitude: Modules.Fraction
+	local lesserMagnitude: Modules.Fraction
 
-	lesserAnomaly = 0
-	lesserMagnitude = Magnitude(self:CalculatePointFromTrueAnomaly(lesserAnomaly).Position)
+	lesserAnomaly = Constants.ZERO_FRACTION
+	lesserMagnitude = self:CalculatePointFromTrueAnomaly(lesserAnomaly).Position:Magnitude()
 
-	if self:IsClosed() then -- search range: 0 -> math.pi
-		greaterAnomaly = math.pi
-		greaterMagnitude = Magnitude(self:CalculatePointFromTrueAnomaly(greaterAnomaly).Position)
-	else -- search range: 0 -> (x < math.pi) (the range of true anomaly of hyperbolic orbit)
-		greaterAnomaly = math.acos(-(mu * rM) / Magnitude(mu * r + rM * r:Cross(v):Cross(v))) - 2.24e-16 -- subtract small number so greaterPoint will work, hopefully
-		greaterMagnitude = Magnitude(self:CalculatePointFromTrueAnomaly(greaterAnomaly).Position)
+	if self:IsClosed() then -- search range: 0 -> pi
+		greaterAnomaly = Constants.PI
+		greaterMagnitude = self:CalculatePointFromTrueAnomaly(greaterAnomaly).Position:Magnitude()
+	else -- search range: 0 -> (x < pi) (the range of true anomaly of hyperbolic orbit)
+		greaterAnomaly = BigMath.acos(-(mu * rM) / getmetatable(self)._mu_r_rM_rxvxv_magnitude) -- - 2.24e-16 -- subtract small number so greaterPoint will work, hopefully
+		greaterMagnitude = self:CalculatePointFromTrueAnomaly(greaterAnomaly).Position:Magnitude()
 	end
 
 	-- Bisection search for true anomaly, check distance by converting anomaly to point and compare with magnitude
-	local trueAnomaly: number = (greaterAnomaly + lesserAnomaly) / 2
-	local trueAnomalyMagnitude: number = Magnitude(self:CalculatePointFromTrueAnomaly(trueAnomaly).Position)
-	local lastTrueAnomalyMagnitude: number
+	local trueAnomaly: Modules.Fraction = (greaterAnomaly + lesserAnomaly) / 2
+	local trueAnomalyMagnitude: Modules.Fraction = self:CalculatePointFromTrueAnomaly(trueAnomaly).Position:Magnitude()
+	local lastTrueAnomalyMagnitude: Modules.Fraction
 	local anomalySearchIteration: number = 0
-	assert(trueAnomalyMagnitude ~= math.huge, `infinite value detected`)
+	assert(trueAnomalyMagnitude ~= BigNum.newFraction(1, 0), `infinite value detected`)
 	repeat
 		if trueAnomalyMagnitude < magnitude then
 			lesserAnomaly = trueAnomaly
-			lesserMagnitude = Magnitude(self:CalculatePointFromTrueAnomaly(lesserAnomaly).Position)
+			lesserMagnitude = self:CalculatePointFromTrueAnomaly(lesserAnomaly).Position:Magnitude()
 		else
 			greaterAnomaly -= trueAnomaly - lesserAnomaly
-			greaterMagnitude = Magnitude(self:CalculatePointFromTrueAnomaly(greaterAnomaly).Position)
+			greaterMagnitude = self:CalculatePointFromTrueAnomaly(greaterAnomaly).Position:Magnitude()
 		end
 
 		lastTrueAnomalyMagnitude = trueAnomalyMagnitude
 
 		trueAnomaly = (greaterAnomaly + lesserAnomaly) / 2
-		trueAnomalyMagnitude = Magnitude(self:CalculatePointFromTrueAnomaly(trueAnomaly).Position)
+		trueAnomalyMagnitude = self:CalculatePointFromTrueAnomaly(trueAnomaly).Position:Magnitude()
 		-- assert(trueAnomalyMagnitude ~= nil, `trueAnomalyPosition has errored ({trueAnomalyMagnitude})`)
 		-- ...should i be concerned about performance issues
 
 		assert(
 			anomalySearchIteration <= 50,
-			`Anomaly iterative search taking too long, concluded at {math.min(
+			`Anomaly iterative search taking too long, concluded at {BigMath.min(
 				greaterMagnitude - magnitude,
 				lesserMagnitude - magnitude
 			)} distance from target`
@@ -809,7 +852,7 @@ function TrajectoryObject:CalculateTrueAnomalyFromMagnitude(magnitude: number): 
 		-- )
 
 		anomalySearchIteration += 1
-	until (greaterAnomaly - lesserAnomaly) < (10 ^ -11) or lastTrueAnomalyMagnitude == trueAnomalyMagnitude
+	until (greaterAnomaly - lesserAnomaly) < BigMath.toFraction(10 ^ -11) or lastTrueAnomalyMagnitude == trueAnomalyMagnitude
 	print(`trueAnomaly calc finished at {anomalySearchIteration} iterations`)
 	print(trueAnomalyMagnitude, magnitude)
 	return trueAnomaly
@@ -822,14 +865,14 @@ end
 	https://www.desmos.com/3d/rfndgd4ppj
 ]=]
 function TrajectoryObject:CalculateTimeFromMagnitude(
-	magnitude: number
-): number -- Need to implement looking in the past for hyperbolic orbits!
+	magnitude: Modules.BigNum | Modules.Fraction | number
+): Modules.Fraction -- Need to implement looking in the past for hyperbolic orbits!
 	if self.OrbitingBody then
 		local trueAnomalyAngle = self:CalculateTrueAnomalyFromMagnitude(magnitude)
-		assert(typeof(trueAnomalyAngle) == "number", `self.OrbitingBody unexpectedly altered ({self.OrbitingBody})`)
-		assert(trueAnomalyAngle == trueAnomalyAngle, `trueAnomalyAngle is nan`)
+		-- assert(typeof(trueAnomalyAngle) == "number", `self.OrbitingBody unexpectedly altered ({self.OrbitingBody})`)
+		assert(not BigMath.isNaN(trueAnomalyAngle), `trueAnomalyAngle is nan`)
 
-		local resultTime: number
+		local resultTime: Modules.Fraction
 		if self:IsClosed() then
 			resultTime =
 				self:CalculateTimeFromTrueAnomaly(trueAnomalyAngle, self:OrbitalPeriod() - self:TimeToPeriapsis()) -- CalculateTimeFromTrueAnomaly is broken??
@@ -839,8 +882,8 @@ function TrajectoryObject:CalculateTimeFromMagnitude(
 				if self:TimeToPeriapsis() == self:TimeToPeriapsis() then self:TimeToPeriapsis() else 0
 			)
 		end
-		assert(typeof(resultTime) == "number", `self.OrbitingBody unexpectedly altered ({self.OrbitingBody})`)
-		assert(resultTime == resultTime, `resultTime is nan`)
+		-- assert(typeof(resultTime) == "number", `self.OrbitingBody unexpectedly altered ({self.OrbitingBody})`)
+		assert(not BigMath.isNaN(resultTime), `resultTime is nan`)
 
 		-- print(self.Position)
 		-- error("4redyhrftxdujhrfcvumjn rf 6xfvmujxrcf6fvjmcrd6tjvmct6d5tfjv ")
@@ -854,17 +897,17 @@ end
 	Calculates a new MovingObject at a given altitude on this TrajectoryObject.
 	https://www.desmos.com/3d/rfndgd4ppj
 ]=]
-function TrajectoryObject:CalculatePointFromMagnitude(magnitude: number): Modules.MovingObject
+function TrajectoryObject:CalculatePointFromMagnitude(magnitude: Modules.BigNum | Modules.Fraction | number): Modules.MovingObject
 	if self.OrbitingBody then
 		local trueAnomalyAngle = self:CalculateTrueAnomalyFromMagnitude(magnitude)
-		assert(typeof(trueAnomalyAngle) == "number", `self.OrbitingBody unexpectedly altered ({self.OrbitingBody})`)
-		assert(trueAnomalyAngle == trueAnomalyAngle, `trueAnomalyAngle is nan`)
+		-- assert(typeof(trueAnomalyAngle) == "number", `self.OrbitingBody unexpectedly altered ({self.OrbitingBody})`)
+		assert(not BigMath.isNaN(trueAnomalyAngle), `trueAnomalyAngle is nan`)
 		local resultPoint = self:CalculatePointFromTrueAnomaly(trueAnomalyAngle)
-		assert(resultPoint == resultPoint, `resultPoint is nan`)
+		assert(not BigMath.isNaN(resultPoint), `resultPoint is nan`)
 
 		return resultPoint
 	else
-		return MovingObject.new(self.Position + self.Velocity.Unit * magnitude, self.Velocity)
+		return MovingObject.new(self.Position + self.Velocity:Unit() * magnitude, self.Velocity)
 	end
 end
 
@@ -873,9 +916,9 @@ end
 	Updates position, velocity, and the orbiting body.
 	Optionally takes an acceleration value.
 ]=]
-function TrajectoryObject:Step(delta: number, withAcceleration: Vector3?): Modules.TrajectoryObject
-	local newVelocity: Vector3 = self.Velocity
-	local newPosition: Vector3 = self.Position
+function TrajectoryObject:Step(delta: Modules.BigNum | Modules.Fraction | number, withAcceleration: Modules.Vector3B?): Modules.TrajectoryObject
+	local newVelocity: Modules.Vector3B = self.Velocity
+	local newPosition: Modules.Vector3B = self.Position
 
 	-- Update acceleration
 	if withAcceleration then
@@ -885,7 +928,7 @@ function TrajectoryObject:Step(delta: number, withAcceleration: Vector3?): Modul
 	-- Update orbiting body
 	local newOrbitingBody: Modules.GravityBody? = self.OrbitingBody
 
-	if self.OrbitingBody and Magnitude(newPosition) > self.OrbitingBody.SOIRadius then
+	if self.OrbitingBody and newPosition:Magnitude() > self.OrbitingBody.SOIRadius then
 		newOrbitingBody = self.OrbitingBody.ParentGravityBody
 	end
 
@@ -897,7 +940,7 @@ function TrajectoryObject:Step(delta: number, withAcceleration: Vector3?): Modul
 
 	-- print(`step, before: {newTrajectoryObject:getSuper():getSuper().Position}`)
 	-- print(`step, after: {nextState.Position}`)
-	print(`distance: {Magnitude(newTrajectoryObject:getSuper():getSuper().Position - nextState.Position)}`)
+	print(`distance: {(newTrajectoryObject:getSuper():getSuper().Position - nextState.Position):Magnitude()}`)
 	newTrajectoryObject:getSuper():setSuper(nextState)
 	return newTrajectoryObject
 end
@@ -910,9 +953,9 @@ end
 	@param relativeTime The time passed since the location of this TrajectoryObject.
 	@param withAcceleration Adds an acceleration to this TrajectoryObject, modifying the trajectory. Note: This is applied instantaneously, make sure to multiply with delta
 ]=]
-function TrajectoryObject:AtTime(relativeTime: number, withAcceleration: Vector3?): Modules.TrajectoryObject
-	local newVelocity: Vector3 = self.Velocity
-	local newPosition: Vector3 = self.Position
+function TrajectoryObject:AtTime(relativeTime: Modules.BigNum | Modules.Fraction | number, withAcceleration: Modules.Vector3B?): Modules.TrajectoryObject
+	local newVelocity: Modules.Vector3B = self.Velocity
+	local newPosition: Modules.Vector3B = self.Position
 
 	if withAcceleration then
 		newVelocity += withAcceleration
@@ -938,13 +981,13 @@ end
 	@param withAcceleration Adds an acceleration to this TrajectoryObject, modifying the trajectory.
 ]=]
 function TrajectoryObject:Increment(
-	delta: number,
-	recursions: number?,
-	withAcceleration: Vector3?
+	delta: Modules.BigNum | Modules.Fraction | number,
+	recursions: Modules.BigNum | number?,
+	withAcceleration: Modules.Vector3B?
 ): Modules.TrajectoryObject
 	local newTrajectoryObject: Modules.TrajectoryObject = self
 
-	for _ = 0, (if recursions then recursions else 1) do
+	for _ = 0, (if recursions then BigMath.toDecimal(recursions) else 1) do
 		newTrajectoryObject = self:Step(delta, withAcceleration)
 	end
 
@@ -959,10 +1002,10 @@ end
 	@param delta The change in time.
 	@param recursions The number of points to calculate.
 ]=]
-function TrajectoryObject:CalculateTrajectory(delta: number, recursions: number): { Modules.MovingObject }
+function TrajectoryObject:CalculateTrajectory(delta: Modules.BigNum | Modules.Fraction | number, recursions: Modules.BigNum | number): { Modules.MovingObject }
 	local points: { Modules.MovingObject } = {}
 
-	for i = 0, recursions do
+	for i = 0, BigMath.toDecimal(recursions) do
 		table.insert(points, self:CalculatePointFromTime(delta * i))
 		-- print(`time progress: {delta * i / self.OrbitalPeriod}`)
 	end
@@ -976,7 +1019,7 @@ end
 	@param delta The change in time.
 	@param recursions The number of points to calculate.
 ]=]
-function TrajectoryObject:DisplayTrajectory(delta: number, recursions: number): Folder
+function TrajectoryObject:DisplayTrajectory(delta: Modules.BigNum | Modules.Fraction | number, recursions: Modules.BigNum | number): Folder
 	local trajectory: { Modules.MovingObject } = self:CalculateTrajectory(delta, recursions)
 
 	--[[
@@ -1028,7 +1071,7 @@ function TrajectoryObject:DisplayTrajectory(delta: number, recursions: number): 
 	for _, attachment in attachments do
 		attachment.Parent = attachmentFolder
 	end
-	attachmentFolder.Position = self.CalculateWorkspacePosition(Vector3.zero, self.OrbitingBody)
+	attachmentFolder.Position = self.CalculateWorkspacePosition(Vector3B.zero, self.OrbitingBody)
 	attachmentFolder.Parent = newTrajectoryFolder
 
 	local beamFolder: Folder = Instance.new("Folder")

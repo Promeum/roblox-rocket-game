@@ -1,8 +1,8 @@
 local Modules = require(game.ReplicatedStorage.Modules.Modules)
-local Constants = require(game.ReplicatedStorage.Modules.Constants)
+-- local Constants = require(game.ReplicatedStorage.Modules.Constants)
 local SolarSystemObject = require(script.Parent.Parent.SolarSystemObject)
 local TrajectoryHolderObject = require(script.Parent.TrajectoryHolderObject)
-local TrajectoryObject = require(script.Parent.TrajectoryObject)
+-- local TrajectoryObject = require(script.Parent.TrajectoryObject)
 
 local SolarSystemPhysicsBody = {}
 
@@ -10,8 +10,8 @@ local SolarSystemPhysicsBody = {}
 	Creates a new SolarSystemBody instance.
 ]=]
 function SolarSystemPhysicsBody.new(
-	position: Vector3,
-	velocity: Vector3,
+	position: Modules.Vector3B,
+	velocity: Modules.Vector3B,
 	part: Part,
 	inSOIOf: Modules.GravityBody?
 ): Modules.SolarSystemPhysicsBody
@@ -51,9 +51,9 @@ end
 function SolarSystemPhysicsBody:Update(
 	time: number,
 	toChange: {
-		position: Vector3?,
-		velocity: Vector3?,
-		acceleration: Vector3?,
+		position: Modules.Vector3B?,
+		velocity: Modules.Vector3B?,
+		acceleration: Modules.Vector3B?,
 		inSOIOf: Modules.GravityBody?,
 	}
 ): Modules.MovingObject

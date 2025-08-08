@@ -1,12 +1,13 @@
 --!strict
 
-function Magnitude(v: Vector3): number
-	return math.sqrt(v.X ^ 2 + v.Y ^ 2 + v.Z ^ 2)
-end
+-- function Magnitude(v: Modules.Vector3B): number
+-- 	return math.sqrt(v.X ^ 2 + v.Y ^ 2 + v.Z ^ 2)
+-- end
 
 local Modules = require(game.ReplicatedStorage.Modules.Modules)
 local Constants = require(game.ReplicatedStorage.Modules.Constants)
-local MovingObject = require(script.Parent.Parent.Parent.MovingObject)
+local BigMath = require(game.ReplicatedStorage.Modules.BigMath)
+-- local MovingObject = require(script.Parent.Parent.Parent.MovingObject)
 local SolarSystemObject = require(script.Parent.Parent.SolarSystemObject)
 local TrajectoryObject = require(script.Parent.TrajectoryObject)
 
@@ -16,8 +17,8 @@ local TrajectoryHolderObject = {}
 	Creates a new TrajectoryHolderObject instance.
 ]=]
 function TrajectoryHolderObject.new(
-	position: Vector3,
-	velocity: Vector3,
+	position: Modules.Vector3B,
+	velocity: Modules.Vector3B,
 	orbitingBody: Modules.GravityBody?
 ): Modules.TrajectoryHolderObject
 	return TrajectoryHolderObject.from(SolarSystemObject.new(position, velocity), orbitingBody)
@@ -41,7 +42,7 @@ function TrajectoryHolderObject.from(
 
 	-- generate next trajectories
 	newTrajectoryHolderObject.allTrajectories = {
-		{ relativeTime = 0, trajectory = TrajectoryObject.from(solarSystemObject, orbitingBody) },
+		{ relativeTime = Constants.ZERO_FRACTION, trajectory = TrajectoryObject.from(solarSystemObject, orbitingBody) },
 	}
 
 	return newTrajectoryHolderObject
@@ -51,13 +52,13 @@ end
 	Returns the current trajectory and the time it starts, relative to the start of this TrajectoryHolderObjects (represented by relativeTime = 0).
 ]=]
 function TrajectoryHolderObject:CurrentTrajectorySegment(
-	relativeTime: number
-): { relativeTime: number, trajectory: Modules.TrajectoryObject }
+	relativeTime: Modules.BigNum | Modules.Fraction | number
+): { relativeTime: Modules.Fraction, trajectory: Modules.TrajectoryObject }
 	for i = #self.allTrajectories, 0, -1 do
-		local thisTrajectorySegment: { relativeTime: number, trajectory: Modules.TrajectoryObject } =
+		local thisTrajectorySegment: { relativeTime: Modules.Fraction, trajectory: Modules.TrajectoryObject } =
 			self.allTrajectories[i]
 
-		if thisTrajectorySegment.relativeTime <= relativeTime then
+		if thisTrajectorySegment.relativeTime <= BigMath.toFraction(relativeTime) then
 			-- print(`Trajectory segment: {i}`)
 			-- print(`relativeTime: {relativeTime}`)
 			return thisTrajectorySegment
@@ -70,7 +71,7 @@ end
 --[=[
 	Returns the current trajectory.
 ]=]
-function TrajectoryHolderObject:CurrentTrajectory(relativeTime: number): Modules.TrajectoryObject
+function TrajectoryHolderObject:CurrentTrajectory(relativeTime: Modules.BigNum | Modules.Fraction | number): Modules.TrajectoryObject
 	return self:CurrentTrajectorySegment(relativeTime).trajectory
 end
 
@@ -78,7 +79,7 @@ end
 	Returns the GravityBody currently being orbited, or nil if there is none.
 	https://en.wikipedia.org/wiki/Orbital_elements
 ]=]
-function TrajectoryHolderObject:OrbitingBody(relativeTime: number): Modules.GravityBody?
+function TrajectoryHolderObject:OrbitingBody(relativeTime: Modules.BigNum | Modules.Fraction | number): Modules.GravityBody?
 	return self:CurrentTrajectory(relativeTime).OrbitingBody
 end
 
@@ -86,7 +87,7 @@ end
 	Returns the apoapsis, or nil if there is no GravityBody currently being orbited.
 	https://en.wikipedia.org/wiki/Orbital_elements
 ]=]
-function TrajectoryHolderObject:OrbitalPeriod(relativeTime: number): number?
+function TrajectoryHolderObject:OrbitalPeriod(relativeTime: Modules.BigNum | Modules.Fraction | number): Modules.Fraction?
 	return self:CurrentTrajectory(relativeTime):OrbitalPeriod()
 end
 
@@ -94,7 +95,7 @@ end
 	Returns the apoapsis, or nil if there is no GravityBody currently being orbited.
 	https://en.wikipedia.org/wiki/Orbital_elements
 ]=]
-function TrajectoryHolderObject:CurrentApoapsis(relativeTime: number): Modules.MovingObject?
+function TrajectoryHolderObject:CurrentApoapsis(relativeTime: Modules.BigNum | Modules.Fraction | number): Modules.MovingObject?
 	return self:CurrentTrajectory(relativeTime):Apoapsis()
 end
 
@@ -102,7 +103,7 @@ end
 	Returns the periapsis, or nil if there is no GravityBody currently being orbited.
 	https://en.wikipedia.org/wiki/Orbital_elements
 ]=]
-function TrajectoryHolderObject:CurrentPeriapsis(relativeTime: number): Modules.MovingObject?
+function TrajectoryHolderObject:CurrentPeriapsis(relativeTime: Modules.BigNum | Modules.Fraction | number): Modules.MovingObject?
 	return self:CurrentTrajectory(relativeTime):Periapsis()
 end
 
@@ -110,7 +111,7 @@ end
 	Returns the semi major axis, or nil if there is no GravityBody currently being orbited.
 	https://en.wikipedia.org/wiki/Vis-viva_equation
 ]=]
-function TrajectoryHolderObject:SemiMajorAxis(relativeTime: number): number?
+function TrajectoryHolderObject:SemiMajorAxis(relativeTime: Modules.BigNum | Modules.Fraction | number): Modules.Fraction?
 	return self:CurrentTrajectory(relativeTime):SemiMajorAxis()
 end
 
@@ -118,7 +119,7 @@ end
 	Returns the semi minor axis, or nil if there is no GravityBody currently being orbited.
 	https://en.wikipedia.org/wiki/Orbital_elements
 ]=]
-function TrajectoryHolderObject:SemiMinorAxis(relativeTime: number): number?
+function TrajectoryHolderObject:SemiMinorAxis(relativeTime: Modules.BigNum | Modules.Fraction | number): Modules.Fraction?
 	return self:CurrentTrajectory(relativeTime):SemiMinorAxis()
 end
 
@@ -126,7 +127,7 @@ end
 	Returns the eccentricity, or nil if there is no GravityBody currently being orbited.
 	https://en.wikipedia.org/wiki/Eccentricity_vector
 ]=]
-function TrajectoryHolderObject:Eccentricity(relativeTime: number): number?
+function TrajectoryHolderObject:Eccentricity(relativeTime: Modules.BigNum | Modules.Fraction | number): Modules.Fraction?
 	return self:CurrentTrajectory(relativeTime):Eccentricity()
 end
 
@@ -139,7 +140,7 @@ function TrajectoryHolderObject:CalculateNextTrajectory(): Modules.TrajectoryObj
 
 	local n = Instance.new("Part")
 	local qwe = self.allTrajectories[#self.allTrajectories].trajectory
-	n.Position = (qwe.Position * Constants.SOLAR_SYSTEM_SCALE)
+	n.Position = (qwe.Position:toVector3() * Constants.SOLAR_SYSTEM_SCALE)
 		+ if qwe.OrbitingBody then qwe.OrbitingBody.RootPart.Position else Vector3.zero
 	n.Anchored = true
 	n.Shape = Enum.PartType.Ball
@@ -148,8 +149,8 @@ function TrajectoryHolderObject:CalculateNextTrajectory(): Modules.TrajectoryObj
 	n.Parent = workspace
 
 	if nextTrajectory then
-		local lastRelativeTime: number = self.allTrajectories[#self.allTrajectories].relativeTime
-		local relativeTimeOfNextTrajectory: number
+		local lastRelativeTime: Modules.Fraction = self.allTrajectories[#self.allTrajectories].relativeTime
+		local relativeTimeOfNextTrajectory: Modules.Fraction
 		if -- going out of an SOI
 			(
 				lastTrajectory.OrbitingBody
@@ -177,7 +178,7 @@ function TrajectoryHolderObject:CalculateNextTrajectory(): Modules.TrajectoryObj
 
 		local n = Instance.new("Part")
 		local qwe = self.allTrajectories[#self.allTrajectories].trajectory
-		n.Position = (qwe.Position * Constants.SOLAR_SYSTEM_SCALE)
+		n.Position = (qwe.Position:toVector3() * Constants.SOLAR_SYSTEM_SCALE)
 			+ if qwe.OrbitingBody then qwe.OrbitingBody.RootPart.Position else Vector3.zero
 		n.Anchored = true
 		n.Shape = Enum.PartType.Ball
@@ -196,12 +197,12 @@ end
 --[=[
 	ru8sthfgbivjkrst
 ]=]
-function TrajectoryHolderObject:CalculatePointFromTime(relativeTime: number): Modules.MovingObject
+function TrajectoryHolderObject:CalculatePointFromTime(relativeTime: Modules.BigNum | Modules.Fraction | number): Modules.MovingObject
 	-- determine trajectory segment
 	local chosenTrajectorySegment = self:CurrentTrajectorySegment(relativeTime)
 
 	local resultPoint: Modules.MovingObject =
-		chosenTrajectorySegment.trajectory:CalculatePointFromTime(relativeTime - chosenTrajectorySegment.relativeTime)
+		chosenTrajectorySegment.trajectory:CalculatePointFromTime(BigMath.toFraction(relativeTime) - chosenTrajectorySegment.relativeTime)
 
 	-- assert(resultPoint.Position == resultPoint.Position, `nan`)
 	return resultPoint
@@ -210,25 +211,25 @@ end
 --[=[
 	ru8sthfgbivjkrst
 ]=]
-function TrajectoryHolderObject:CalculateTimeFromPoint(position: Vector3, orbitingBody: Modules.GravityBody): number?
+function TrajectoryHolderObject:CalculateTimeFromPoint(position: Modules.Vector3B, orbitingBody: Modules.GravityBody): Modules.Fraction?
 	-- find which trajectories are in the same SOI
 	-- find the closest point by comparing results for Magnitude(trajectory:CalculatePointFromTime(trajectory:CalculateTimeFromPoint(position)).Position - position)
-	return
+	return error("Function not implemented")
 end
 
 --[=[
 	ru8sthfgbivjkrst
 ]=]
-function TrajectoryHolderObject:Step(delta: number, withAcceleration: Vector3?): Modules.TrajectoryHolderObject
-	return self
+function TrajectoryHolderObject:Step(delta: Modules.BigNum | Modules.Fraction | number, withAcceleration: Modules.Vector3B?): Modules.TrajectoryHolderObject
+	return error("Function not implemented") -- self
 end
 
 --[=[
 	@param relativeTime The time since the start of the first trajectory.
 ]=]
-function TrajectoryHolderObject:AtTime(relativeTime: number, withAcceleration: Vector3?): Modules.TrajectoryHolderObject
-	local newVelocity: Vector3 = self.Velocity
-	local newPosition: Vector3 = self.Position
+function TrajectoryHolderObject:AtTime(relativeTime: Modules.BigNum | Modules.Fraction | number, withAcceleration: Modules.Vector3B?): Modules.TrajectoryHolderObject
+	local newVelocity: Modules.Vector3B = self.Velocity
+	local newPosition: Modules.Vector3B = self.Position
 
 	if withAcceleration then
 		newVelocity += withAcceleration
@@ -250,24 +251,24 @@ end
 	ru8sthfgbivjkrst
 ]=]
 function TrajectoryHolderObject:Increment(
-	delta: number,
-	recursions: number,
-	withAcceleration: Vector3?
+	delta: Modules.BigNum | Modules.Fraction | number,
+	recursions: Modules.BigNum | Modules.Fraction | number,
+	withAcceleration: Modules.Vector3B?
 ): Modules.TrajectoryHolderObject
-	return self
+	return error("Function not implemented") -- self
 end
 
 --[=[
 	ru8sthfgbivjkrst
 ]=]
-function TrajectoryHolderObject:CalculateTrajectory(delta: number, recursions: number): { Modules.MovingObject }
-	return self:getSuper():getSuper()
+function TrajectoryHolderObject:CalculateTrajectory(delta: Modules.BigNum | Modules.Fraction | number, recursions: Modules.BigNum | number): { Modules.MovingObject }
+	return error("Function not implemented") -- self:getSuper():getSuper()
 end
 
 --[=[
 	ru8sthfgbivjkrst
 ]=]
-function TrajectoryHolderObject:DisplayTrajectory(resolution: number): Folder
+function TrajectoryHolderObject:DisplayTrajectory(resolution: Modules.BigNum | number): Folder
 	-- add everything to workspace in a nice file hierarchy
 	local newTrajectoryFolder: Folder = Instance.new("Folder")
 	newTrajectoryFolder.Name = "SegmentedTrajectoryLine"
@@ -284,7 +285,7 @@ function TrajectoryHolderObject:DisplayTrajectory(resolution: number): Folder
 			(
 				self.allTrajectories[trajectoryIndex + 1].relativeTime
 				- self.allTrajectories[trajectoryIndex].relativeTime
-			) / resolution,
+			) / BigMath.toFraction(resolution),
 			resolution
 		)
 
@@ -300,8 +301,8 @@ function TrajectoryHolderObject:DisplayTrajectory(resolution: number): Folder
 		(
 			if thisTrajectory.OrbitingBody
 				then thisTrajectory:OrbitalPeriod()
-				else Magnitude(thisTrajectory.Velocity) * 1e5
-		) / resolution,
+				else thisTrajectory.Velocity:Magnitude() * BigMath.toFraction(1e5)
+		) / BigMath.toFraction(resolution),
 		resolution
 	)
 

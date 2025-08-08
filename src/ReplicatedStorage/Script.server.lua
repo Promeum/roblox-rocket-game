@@ -18,28 +18,87 @@ Units: (nvm)
 -- set global variables
 local Modules = require(game.ReplicatedStorage.Modules.Modules)
 local Constants = require(game.ReplicatedStorage.Modules.Constants)
+local BigNum = require(game.ReplicatedStorage.Modules.Libraries.BigNum)
+local BigMath = require(game.ReplicatedStorage.Modules.BigMath)
+local Vector3B = require(game.ReplicatedStorage.Modules.BaseModuleFolder.Vector3B)
 local SolarSystemObject = require(game.ReplicatedStorage.Modules.BaseModuleFolder.MovingObjectFolder.SolarSystemObject)
 local SolarSystemPhysicsBody = require(
 	game.ReplicatedStorage.Modules.BaseModuleFolder.MovingObjectFolder.SolarSystemObjectFolder.SolarSystemPhysicsBody
 )
 local GravityBody = require(
-	game.ReplicatedStorage.Modules.BaseModuleFolder.MovingObjectFolder.SolarSystemObjectFolder.SolarSystemBodyFolder.GravityBody
+	game.ReplicatedStorage.Modules.BaseModuleFolder.MovingObjectFolder.SolarSystemObjectFolder.SolarSystemPhysicsBodyFolder.GravityBody
 )
 local TrajectoryObject =
 	require(game.ReplicatedStorage.Modules.BaseModuleFolder.MovingObjectFolder.SolarSystemObjectFolder.TrajectoryObject)
 
+-- print("start")
+
+-- bigmath performance test
+
+-- local t1 = os.clock()
+-- local points = {}
+-- for i = 0, math.pi * 100, 1 do -- 100 iterations
+-- 	table.insert(points, {
+-- 		BigNum.newFraction(i, 100),
+-- 		BigMath.pow(Constants.PI, BigNum.newFraction(i, 100)):Reduce()
+-- 	})
+-- end
+-- local t2 = os.clock()
+
+-- print(`time to execute: {t2 - t1}`)
+
+-- local strlist = {}
+-- local str = "["
+-- for _, pt in points do
+-- 	local n = tostring(pt[2].Numerator)
+-- 	local d = tostring(pt[2].Denominator)
+
+-- 	table.insert(strlist, `({pt[1]},{n} / {d}),`)
+-- end
+-- str = str .. table.concat(strlist):sub(1, -2) .. "]"
+
+-- print(str)
+
+-- vector3b performance test
+
+-- local t1 = os.clock()
+
+-- local l = Vector3B.new(9, 6, 4)
+-- local result = l:Dot(Vector3B.new(2, 5, 7))
+-- -- local points = {}
+-- -- for i = 1, math.pi * 100, 1 do -- 100 iterations
+-- -- 	table.insert(points, {
+-- -- 		BigNum.newFraction(i, 100),
+-- -- 		BigMath.log10(BigNum.newFraction(i, 100)):Reduce()
+-- -- 	})
+-- -- end
+
+-- local t2 = os.clock()
+
+-- print(`time to execute: {t2 - t1}`)
+
+-- print(result)
+
+print("range: " .. BigNum.GetRange())
+
+-- error("end test area")
+
 -- initialize Planets (only earth and moon for now...?)
 
-local Earth = GravityBody.new(Vector3.new(0, 6e8, 0), Vector3.new(0, 0, 0), Instance.new("Part"), 5.972168e24, 1.5e9)
+ --[[
+  TODO: fix TrajectoryObject before anything else
+--]]
+local Earth = GravityBody.new(Vector3B.new(0, 6e8, 0), Vector3B.new(0, 0, 0), Instance.new("Part"), "5.972168e24", 1.5e9)
 local Moon = GravityBody.new(
-	Vector3.new(0, 36372e3, -403965e3),
-	Vector3.new(-967, 0, 0),
+	Vector3B.new(0, "36372000", "-403964992"),
+	Vector3B.new(-967, 0, 0),
 	Instance.new("Part"),
-	7.346e22,
+	"7.346e22",
 	66e6,
 	Earth
 )
-local MoonSat = SolarSystemPhysicsBody.new(Vector3.new(0, 0, 1e7), Vector3.new(-1010, 0, 0), Instance.new("Part"), Moon)
+local MoonSat =
+	SolarSystemPhysicsBody.new(Vector3B.new(0, 0, 1e7), Vector3B.new(-1010, 0, 0), Instance.new("Part"), Moon)
 
 table.insert(Earth.ChildGravityBodies, Moon)
 Moon.ParentGravityBody = Earth
