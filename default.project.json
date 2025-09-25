@@ -1,11 +1,23 @@
 {
-  "name": "project",
+  "name": "roblox-rocket-game",
   "tree": {
     "$className": "DataModel",
+    
     "ReplicatedStorage": {
-      "$className": "ReplicatedStorage",
-      "$ignoreUnknownInstances": true,
-      "$path": "src/ReplicatedStorage"
+      "$path": "src/ReplicatedStorage",
+      "Assets": {
+      	"$path": "assets"
+      }
+    },
+    
+    "ServerScriptService": {
+      "$path": "src/ServerScriptService"
+    },
+    
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "$path": "src/StarterPlayer/StarterPlayerScripts"
+      }
     }
   }
 }

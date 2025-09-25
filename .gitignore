@@ -1,0 +1,7 @@
+# rbxl/rbxlx place files
+*.rbxl
+*.rbxlx
+
+# ...and .lock files used by studio
+/*.rbxl.lock
+/*.rbxlx.lock

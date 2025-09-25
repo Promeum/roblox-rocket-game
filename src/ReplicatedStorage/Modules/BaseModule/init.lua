@@ -2,12 +2,12 @@
 
 local Modules = require(game.ReplicatedStorage.Modules.Modules)
 
-local BaseModule = {}
+local BaseModule = { __type = "BaseModule" :: "BaseModule" }
 
 function BaseModule.new(): Modules.BaseModule
 	local newBaseModule = table.clone(BaseModule)
 
-	local metatable = { __type = "BaseModule" }
+	local metatable = {}
 
 	setmetatable(newBaseModule, metatable)
 

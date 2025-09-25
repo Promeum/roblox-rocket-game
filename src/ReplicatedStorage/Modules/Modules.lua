@@ -51,6 +51,47 @@
 -- ))
 
 --[=[
+	Represents a 3D value in cartesian coordinates with 64-bit doubles.
+]=]
+export type Vector3D = typeof(setmetatable(
+	{} :: {
+		new: (
+			x: number,
+			y: number,
+			z: number
+		) -> Vector3D,
+		FromVector3: (vector: Vector3) -> Vector3D,
+		X: number,
+		Y: number,
+		Z: number,
+		Magnitude: (self: Vector3D) -> number,
+		Unit: (self: Vector3D) -> Vector3D,
+		Abs: (self: Vector3D) -> Vector3D,
+		Ceil: (self: Vector3D) -> Vector3D,
+		Floor: (self: Vector3D) -> Vector3D,
+		Sign: (self: Vector3D) -> Vector3D,
+		Cross: (self: Vector3D, other: Vector3D) -> Vector3D,
+		Angle: (self: Vector3D, other: Vector3D, axis: Vector3D?) -> number,
+		Dot: (self: Vector3D, other: Vector3D) -> number,
+		Lerp: (self: Vector3D, other: Vector3D, alpha: number) -> number,
+		Max: (self: Vector3D) -> Vector3D,
+		Min: (self: Vector3D) -> Vector3D,
+		ToVector3: (self: Vector3D) -> Vector3,
+	},
+	{} :: {
+		__eq: (self: Vector3D, other: Vector3D) -> boolean,
+		__lt: (self: Vector3D, other: Vector3D) -> boolean,
+		__le: (self: Vector3D, other: Vector3D) -> boolean,
+		__add: (self: Vector3D, other: Vector3D | number) -> Vector3D,
+		__sub: (self: Vector3D, other: Vector3D | number) -> Vector3D,
+		__mul: (self: Vector3D, other: Vector3D | number) -> Vector3D,
+		__div: (self: Vector3D, other: Vector3D | number) -> Vector3D,
+		__unm: (self: Vector3D) -> Vector3D,
+		__tostring: (self: Vector3D) -> string,
+	}
+))
+
+--[=[
 	Base module (class) for all other modules.
 ]=]
 export type BaseModule = typeof(setmetatable(
@@ -60,8 +101,32 @@ export type BaseModule = typeof(setmetatable(
 		setSuper: (self: any, value: any) -> (),
 		getType: (self: any) -> string,
 		DeepClone: (self: any) -> any,
+		__type: "BaseModule",
 	},
-	{} :: { __type: string }
+	{} :: {
+	}
+))
+
+--[=[
+	Represents a time value in seconds, for physics calculation purposes.
+]=]
+export type TemporalPosition = typeof(setmetatable(
+	{} :: {
+		new: (relativeTime: number, relativeTo: TemporalPosition?) -> TemporalPosition,
+		fromTemporalPosition: (self: TemporalPosition, relativeTime: number) -> TemporalPosition,
+		fromTemporalPositionAbsoluteTime: (self: TemporalPosition, absoluteTime: number) -> TemporalPosition,
+		RelativeTime: number,
+		RelativeTo: TemporalPosition?,
+		GetAbsoluteTime: (self: TemporalPosition) -> number,
+		GetRelativeTime: (self: TemporalPosition) -> number,
+		ConsolidateOnce: (self: TemporalPosition) -> TemporalPosition,
+		Synchronize: (self: TemporalPosition, other: TemporalPosition) -> (TemporalPosition, TemporalPosition),
+		MatchRelative: (self: TemporalPosition, other: TemporalPosition) -> TemporalPosition,
+		__type: "TemporalPosition",
+	},
+	{} :: {
+		__index: BaseModule,
+	}
 ))
 
 --[=[
@@ -69,17 +134,15 @@ export type BaseModule = typeof(setmetatable(
 ]=]
 export type MovingObject = typeof(setmetatable(
 	{} :: {
-		new: (position: Vector3, velocity: Vector3) -> MovingObject,
-		Position: Vector3,
-		Velocity: Vector3,
-		CalculatePointFromTime: (self: MovingObject, relativeTime: number) -> MovingObject,
-		CalculateTimeFromPoint: (self: MovingObject, position: Vector3) -> number?,
-		CalculateTimeFromDistance: (self: MovingObject, distanceFromSelf: number) -> number,
+		new: (position: Vector3D, velocity: Vector3D) -> MovingObject,
+		Position: Vector3D,
+		Velocity: Vector3D,
+		__type: "MovingObject",
 	},
 	{} :: {
 		__index: BaseModule,
-		__type: string,
 		__add: (self: MovingObject, other: MovingObject) -> MovingObject,
+		__sub: (self: MovingObject, other: MovingObject) -> MovingObject,
 	}
 ))
 
@@ -88,76 +151,155 @@ export type MovingObject = typeof(setmetatable(
 ]=]
 export type SolarSystemObject = typeof(setmetatable(
 	{} :: {
-		new: (position: Vector3, velocity: Vector3) -> SolarSystemObject,
-		from: (movingObject: MovingObject) -> SolarSystemObject,
-		CalculateWorkspacePosition: (newPosition: Vector3, OrbitingBody: GravityBody?) -> Vector3,
+		new: (
+			position: Vector3D,
+			velocity: Vector3D,
+			temporalPosition: TemporalPosition,
+			orbitingBody: GravityBody?
+		) -> SolarSystemObject,
+		fromMovingObject: (
+			movingObject: MovingObject,
+			temporalPosition: TemporalPosition,
+			orbitingBody: GravityBody?
+		) -> SolarSystemObject,
+		OrbitingBody: GravityBody?,
+		TemporalPosition: TemporalPosition,
+		RelativeToParent: (self: SolarSystemObject) -> SolarSystemObject,
+		RelativeToChild: (self: SolarSystemObject, childGravityBody: GravityBody) -> SolarSystemObject,
+		CalculateWorkspacePosition: (self: any) -> Vector3D,
+		__type: "SolarSystemObject",
 	},
-	{} :: { __index: MovingObject, __type: string }
+	{} :: {
+		__index: MovingObject,
+	}
 ))
 
 --[=[
-	Used to calculate and display a single conic section,
-	whether or not that may be an orbit around a GravityBody.
+	Used to calculate a linear trajectory through space, unaffected by any gravity force.
+	Not-so-orbital mechanics!
+	Note: Does not account for SOIs.
+]=]
+export type LinearTrajectory = typeof(setmetatable(
+	{} :: {
+		new: (
+			position: Vector3D,
+			velocity: Vector3D
+		) -> LinearTrajectory,
+		fromMovingObject: (
+			movingObject: MovingObject
+		) -> LinearTrajectory,
+		CalculatePointFromTime: (self: LinearTrajectory, relativeTime: number) -> MovingObject,
+		CalculateTimeFromPoint: (self: LinearTrajectory, position: Vector3D) -> number,
+		CalculateTimeFromMagnitude: (self: LinearTrajectory, magnitude: number) -> number,
+		CalculatePointFromMagnitude: (self: LinearTrajectory, magnitude: number) -> MovingObject,
+		__type: "LinearTrajectory",
+	},
+	{} :: {
+		__index: MovingObject,
+	}
+))
+
+--[=[
+	Used to calculate a conic orbit around a GravityBody.
 	Orbital mechanics!
 	Note: Does not account for SOIs.
 	https://www.desmos.com/3d/rfndgd4ppj
 ]=]
-export type TrajectoryObject = typeof(setmetatable(
+export type OrbitalTrajectory = typeof(setmetatable(
 	{} :: {
-		new: (position: Vector3, velocity: Vector3, orbitingBody: GravityBody?) -> TrajectoryObject,
-		from: (solarSystemObject: SolarSystemObject, orbitingBody: GravityBody?) -> TrajectoryObject,
-		OrbitingBody: GravityBody?,
-		NextTrajectory: (self: TrajectoryObject) -> TrajectoryObject?,
-		OrbitalPeriod: (self: TrajectoryObject) -> number,
-		TimeToPeriapsis: (self: TrajectoryObject) -> number,
-		TimeSincePeriapsis: (self: TrajectoryObject) -> number,
-		Apoapsis: (self: TrajectoryObject) -> MovingObject,
-		Periapsis: (self: TrajectoryObject) -> MovingObject,
-		SemiMajorAxis: (self: TrajectoryObject) -> number,
-		SemiMinorAxis: (self: TrajectoryObject) -> number,
-		Eccentricity: (self: TrajectoryObject) -> number,
-		IsBound: (self: TrajectoryObject) -> boolean,
-		IsClosed: (self: TrajectoryObject) -> boolean,
-		SpecificOrbitalEnergy: number?,
+		new: (position: Vector3D, velocity: Vector3D, orbitingBody: GravityBody) -> OrbitalTrajectory,
+		fromMovingObject: (movingObject: MovingObject, orbitingBody: GravityBody) -> OrbitalTrajectory,
+		OrbitingBody: GravityBody,
+		OrbitalPeriod: (self: OrbitalTrajectory) -> number,
+		TimeToPeriapsis: (self: OrbitalTrajectory) -> number,
+		TimeSincePeriapsis: (self: OrbitalTrajectory) -> number,
+		Apoapsis: (self: OrbitalTrajectory) -> MovingObject,
+		Periapsis: (self: OrbitalTrajectory) -> MovingObject,
+		SemiMajorAxis: (self: OrbitalTrajectory) -> number,
+		SemiMinorAxis: (self: OrbitalTrajectory) -> number,
+		Eccentricity: (self: OrbitalTrajectory) -> number,
+		IsBound: (self: OrbitalTrajectory) -> boolean,
+		IsClosed: (self: OrbitalTrajectory) -> boolean,
+		SpecificOrbitalEnergy: number,
 		RecursiveTrueAnomalyHelper: (
-			self: TrajectoryObject,
+			self: OrbitalTrajectory,
 			recursions: number,
 			periapsisRelativeTime: number
 		) -> number,
-		CalculateTrueAnomalyFromTime: (self: TrajectoryObject, relativeTime: number) -> number,
-		CalculatePointFromTrueAnomaly: (self: TrajectoryObject, trueAnomaly: number) -> MovingObject,
+		CalculateTrueAnomalyFromTime: (self: OrbitalTrajectory, relativeTime: number) -> number,
+		CalculatePointFromTrueAnomaly: (self: OrbitalTrajectory, trueAnomaly: number) -> MovingObject,
+		CalculatePointFromTime: (self: OrbitalTrajectory, relativeTime: number) -> MovingObject,
+		CalculateTrueAnomalyFromPoint: (self: OrbitalTrajectory, position: Vector3D) -> number,
+		CalculateTimeFromPeriapsis: (self: OrbitalTrajectory, trueAnomaly: number) -> number,
+		CalculateTimeFromTrueAnomaly: (self: OrbitalTrajectory, trueAnomaly: number, referenceTime: number?) -> number,
+		CalculateTimeFromPoint: (self: OrbitalTrajectory, position: Vector3D, referenceTime: number?) -> number,
+		CalculateTrueAnomalyFromMagnitude: (self: OrbitalTrajectory, magnitude: number) -> number,
+		CalculateTimeFromMagnitude: (self: OrbitalTrajectory, magnitude: number) -> number,
+		CalculatePointFromMagnitude: (self: OrbitalTrajectory, magnitude: number) -> MovingObject,
+		__type: "OrbitalTrajectory",
+	},
+	{} :: {
+		__index: MovingObject,
+	}
+))
+
+--[=[
+	Wraps a LinearTrajectory or OrbitalTrajectory object,
+	providing additional functionality regarding SOI's, TemporalPosition, et cetera.
+	https://www.desmos.com/3d/rfndgd4ppj
+]=]
+export type TrajectoryObject = typeof(setmetatable(
+	{} :: {
+		new: (position: Vector3D, velocity: Vector3D, temporalPosition: TemporalPosition, orbitingBody: GravityBody?) -> TrajectoryObject,
+		fromMovingObject: (movingObject: MovingObject, temporalPosition: TemporalPosition, orbitingBody: GravityBody?) -> TrajectoryObject,
+		fromSolarSystemObject: (solarSystemObject: SolarSystemObject) -> TrajectoryObject,
+		Trajectory: LinearTrajectory | OrbitalTrajectory,
+		Orbit: {
+			Trajectory: OrbitalTrajectory,
+			Body: GravityBody,
+			OrbitalPeriod: (self: any) -> number,
+			TimeToPeriapsis: (self: any) -> number,
+			TimeSincePeriapsis: (self: any) -> number,
+			Apoapsis: (self: any) -> MovingObject,
+			Periapsis: (self: any) -> MovingObject,
+			SemiMajorAxis: (self: any) -> number,
+			SemiMinorAxis: (self: any) -> number,
+			Eccentricity: (self: any) -> number,
+			IsBound: (self: any) -> boolean,
+			IsClosed: (self: any) -> boolean,
+			SpecificOrbitalEnergy: (self: any) -> number,
+		}?,
+		minimumOrbitalIntersectionDistance: (
+			self: TrajectoryObject,
+			trajectory: TrajectoryObject,
+			searchTimeMin: TemporalPosition,
+			searchTimeMax: TemporalPosition
+		) -> SolarSystemObject,
+		EscapingSOI: (self: TrajectoryObject) -> boolean,
+		SOIChange: (self: TrajectoryObject) -> (SolarSystemObject?, TemporalPosition?, ("out" | "in")?),
+		NextTrajectory: (self: TrajectoryObject) -> (TrajectoryObject?, TemporalPosition?),
 		CalculatePointFromTime: (self: TrajectoryObject, relativeTime: number) -> MovingObject,
-		CalculateTrueAnomalyFromPoint: (self: TrajectoryObject, position: Vector3) -> number,
-		CalculateTimeFromPeriapsis: (self: TrajectoryObject, trueAnomaly: number) -> number,
-		CalculateTimeFromTrueAnomaly: (self: TrajectoryObject, trueAnomaly: number, referenceTime: number?) -> number,
-		CalculateTimeFromPoint: (self: TrajectoryObject, position: Vector3, referenceTime: number?) -> number,
-		CalculateTrueAnomalyFromMagnitude: (self: TrajectoryObject, magnitude: number) -> number,
+		CalculateTimeFromPoint: (self: TrajectoryObject, position: Vector3D, referenceTime: number?) -> number,
 		CalculateTimeFromMagnitude: (self: TrajectoryObject, magnitude: number) -> number,
 		CalculatePointFromMagnitude: (self: TrajectoryObject, magnitude: number) -> MovingObject,
-		Step: (self: TrajectoryObject, delta: number, withAcceleration: Vector3?) -> TrajectoryObject,
-		AtTime: (self: TrajectoryObject, time: number, withAcceleration: Vector3?) -> TrajectoryObject,
+		Step: (self: TrajectoryObject, delta: number, withAcceleration: Vector3D?) -> TrajectoryObject,
+		AtTime: (
+			self: TrajectoryObject,
+			relativeTime: number,
+			withAcceleration: Vector3D?
+		) -> TrajectoryObject,
 		Increment: (
 			self: TrajectoryObject,
 			delta: number,
 			recursions: number,
-			withAcceleration: Vector3?
+			withAcceleration: Vector3D?
 		) -> TrajectoryObject,
-		CalculateTrajectory: (self: TrajectoryObject, delta: number, recursions: number) -> { MovingObject },
+		CalculatePoints: (self: TrajectoryObject, delta: number, recursions: number) -> { SolarSystemObject },
 		DisplayTrajectory: (self: TrajectoryObject, delta: number, recursions: number) -> Folder,
+		__type: "TrajectoryObject",
 	},
 	{} :: {
-		_OrbitalPeriod: any,
-		_TimeToPeriapsis: any,
-		_TimeSincePeriapsis: any,
-		_Apoapsis: any,
-		_Periapsis: any,
-		_SemiMajorAxis: any,
-		_SemiMinorAxis: any,
-		_Eccentricity: any,
-		_IsBound: any,
-		_IsClosed: any,
 		__index: SolarSystemObject,
-		__type: string,
 	}
 ))
 
@@ -170,7 +312,7 @@ export type TrajectoryObject = typeof(setmetatable(
 
 export type TrajectoryHolderObject = typeof(setmetatable(
 	{} :: {
-		new: (position: Vector3, velocity: Vector3, orbitingBody: GravityBody?) -> TrajectoryHolderObject,
+		new: (position: Vector3D, velocity: Vector3D, temporalPosition: TemporalPosition, orbitingBody: GravityBody?) -> TrajectoryHolderObject,
 		allTrajectories: { { relativeTime: number, trajectory: TrajectoryObject } },
 		CurrentTrajectorySegment: (
 			self: TrajectoryHolderObject,
@@ -186,23 +328,26 @@ export type TrajectoryHolderObject = typeof(setmetatable(
 		Eccentricity: (self: TrajectoryHolderObject, relativeTime: number) -> number?,
 		CalculateNextTrajectory: (self: TrajectoryHolderObject) -> TrajectoryObject?,
 		CalculatePointFromTime: (self: TrajectoryHolderObject, relativeTime: number) -> MovingObject,
-		CalculateTimeFromPoint: (self: TrajectoryHolderObject, position: Vector3, orbitingBody: GravityBody) -> number?,
-		Step: (self: TrajectoryHolderObject, delta: number, withAcceleration: Vector3?) -> TrajectoryHolderObject,
+		CalculateTimeFromPoint: (self: TrajectoryHolderObject, position: Vector3D, orbitingBody: GravityBody) -> number?,
+		Step: (self: TrajectoryHolderObject, delta: number, withAcceleration: Vector3D?) -> TrajectoryHolderObject,
 		AtTime: (
 			self: TrajectoryHolderObject,
 			relativeTime: number,
-			withAcceleration: Vector3?
+			withAcceleration: Vector3D?
 		) -> TrajectoryHolderObject,
 		Increment: (
 			self: TrajectoryHolderObject,
 			delta: number,
 			recursions: number,
-			withAcceleration: Vector3?
+			withAcceleration: Vector3D?
 		) -> TrajectoryHolderObject,
-		CalculateTrajectory: (self: TrajectoryHolderObject, delta: number, recursions: number) -> { MovingObject },
+		CalculatePoints: (self: TrajectoryHolderObject, delta: number, recursions: number) -> { MovingObject },
 		DisplayTrajectory: (self: TrajectoryHolderObject, resolution: number) -> Folder,
+		__type: "TrajectoryHolderObject",
 	},
-	{} :: { __index: SolarSystemObject, __type: string }
+	{} :: {
+		__index: SolarSystemObject,
+	}
 ))
 
 --[=[
@@ -210,24 +355,26 @@ export type TrajectoryHolderObject = typeof(setmetatable(
 ]=]
 export type SolarSystemPhysicsBody = typeof(setmetatable(
 	{} :: {
-		new: (position: Vector3, velocity: Vector3, part: Part, inSOIOf: GravityBody?) -> SolarSystemPhysicsBody,
-		from: (solarSystemObject: SolarSystemObject, inSOIOf: GravityBody?) -> SolarSystemPhysicsBody,
+		new: (position: Vector3D, velocity: Vector3D, part: Part, orbitingBody: GravityBody?) -> SolarSystemPhysicsBody,
+		fromMovingObject: (movingObject: MovingObject, part: Part, orbitingBody: GravityBody?) -> SolarSystemPhysicsBody,
+		fromSolarSystemObject: (solarSystemObject: SolarSystemObject, part: Part) -> SolarSystemPhysicsBody,
 		RootPart: Part,
 		TrajectoryHolder: TrajectoryHolderObject,
-		ParentGravityBody: GravityBody?,
 		Update: (
-			SolarSystemPhysicsBody,
+			self: SolarSystemPhysicsBody,
 			time: number,
-			delta: number,
 			toChange: {
-				position: Vector3?,
-				velocity: Vector3?,
-				acceleration: Vector3?,
-				inSOIOf: GravityBody?,
-			}
-		) -> TrajectoryHolderObject,
+				position: Vector3D?,
+				velocity: Vector3D?,
+				acceleration: Vector3D?,
+				gravityBody: GravityBody?,
+			}?
+		) -> SolarSystemObject,
+		__type: "SolarSystemPhysicsBody",
 	},
-	{} :: { __index: SolarSystemObject, __type: string }
+	{} :: {
+		__index: SolarSystemObject,
+	}
 ))
 
 --[=[
@@ -236,8 +383,8 @@ export type SolarSystemPhysicsBody = typeof(setmetatable(
 export type GravityBody = typeof(setmetatable(
 	{} :: {
 		new: (
-			position: Vector3,
-			velocity: Vector3,
+			position: Vector3D,
+			velocity: Vector3D,
 			part: Part,
 			mass: number,
 			SOIRadius: number,
@@ -246,7 +393,7 @@ export type GravityBody = typeof(setmetatable(
 		RootPart: Part,
 		Mass: number,
 		SOIRadius: number,
-		Trajectory: TrajectoryObject?,
+		Trajectory: TrajectoryObject,
 		BakedTrajectory: { TrajectoryObject }?,
 		ParentGravityBody: GravityBody?,
 		ChildGravityBodies: { GravityBody },
@@ -255,8 +402,11 @@ export type GravityBody = typeof(setmetatable(
 		OrbitalVelocity: (self: GravityBody) -> number,
 		EscapeVelocity: (self: GravityBody) -> number,
 		Update: (self: GravityBody, delta: number) -> GravityBody,
+		__type: "GravityBody",
 	},
-	{} :: { __index: SolarSystemObject, __type: string }
+	{} :: {
+		__index: SolarSystemObject,
+	}
 ))
 
 -- Silence warnings
