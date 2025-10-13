@@ -2,31 +2,6 @@ local RunService = game:GetService("RunService")
 print("Solar System")
 
 --[[
-	TODO:
-	First get the lune workflow in order!!
-
-	Clean up the inheritance tree to reduce mess and tidy up spilled spaghetti code
-	
-	Proposal for new inheritance tree:
-	BaseModule
-	- State (maybe?) (what would this do other than just being a parent) {Basically an Interface} [new]
-		- OrientationState (maybe?) (very scary math aaaa) [new]
-		- KinematicState (velocity and position, with means for inputting acceleration) [MovingObject]
-		- TemporalState (time) [TemporalPosition]
-		- KinematicTemporalState (KinematicState + TemporalState) [SolarSystemObject]
-			* Do I need to define a class for all (or just some) of the composite states
-			* or is just one general CompositeState class enough?
-	- Trajectory (maybe?) (what would this do other than just being a parent) {Basically an Interface} [new]
-		- LinearTrajectory
-		- OrbitalTrajectory
-		- TrajectoryHolder [TrajectoryHolderObject]
-		- TrajectoryWrapper (maybe?) (is this middleman class really necessary?) [TrajectoryObject]
-	- Celestial (maybe?) (worth making this class for the inheritance tree and relative GravityBody?) [a bit of SolarSystemObject; mostly new]
-		- GravityBody
-		- PhysicsBody (Need to account for development roadmap [adding actual rocket objects to the game])
-]]
-
---[[
 
 Notes
 
@@ -37,7 +12,7 @@ https://ssd.jpl.nasa.gov/horizons/app.html#/
 
 -- set global variables
 local Vector3D = require(game.ReplicatedStorage.Modules.Libraries.Vector3D)
-local Modules = require(game.ReplicatedStorage.Modules.Modules)
+local Modules = require(game.ReplicatedStorage.Modules.Type)
 local Constants = require(game.ReplicatedStorage.Modules.Constants)
 local SolarSystemObject = require(game.ReplicatedStorage.Modules.BaseModule.MovingObject.SolarSystemObject)
 local SolarSystemPhysicsBody = require(game.ReplicatedStorage.Modules.BaseModule.MovingObject.SolarSystemObject.SolarSystemPhysicsBody)

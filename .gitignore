@@ -1,3 +1,6 @@
+# editor files
+.vscode
+
 # rbxl/rbxlx place files
 *.rbxl
 *.rbxlx
@@ -5,3 +8,13 @@
 # ...and .lock files used by studio
 /*.rbxl.lock
 /*.rbxlx.lock
+
+# tools
+.luarc
+rokit.toml
+
+# testing files
+TypeTesting.lua
+TypeTestingTwo.lua
+TypeTestingThree.lua
+TypeTestingFour.lua

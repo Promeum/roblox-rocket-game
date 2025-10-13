@@ -1,64 +1,83 @@
 --!strict
 
-local Modules = require(game.ReplicatedStorage.Modules.Modules)
+local Type = require(script.Parent.Type)
 
-local BaseModule = { __type = "BaseModule" :: "BaseModule" }
+-- Internal type
+type BaseModule = Type.BaseModuleEXTENSIBLE<BaseModule>
 
-function BaseModule.new(): Modules.BaseModule
-	local newBaseModule = table.clone(BaseModule)
+local BaseModule: BaseModule = { __type = "BaseModule" :: "BaseModule" } :: any
 
-	local metatable = {}
-
-	setmetatable(newBaseModule, metatable)
-
-	return newBaseModule
-end
+-- Methods
 
 --[=[
-	Returns the super-instance.
+	Returns a reference to the super-instance.
 ]=]
-function BaseModule:getSuper(): any
+function BaseModule.getSuper(self: any): any
 	return getmetatable(self).__index
 end
 
 --[=[
-	Returns the super-instance.
+	Returns true if self is, or is a subclass of, the type passed in.
+	@param typeName
 ]=]
-function BaseModule:setSuper(value: any): ()
-	getmetatable(self).__index = value
+function BaseModule.instanceOf(self: any, typeName: string): boolean
+	local iterator = self
+
+	if iterator.__type == typeName then
+		return true
+	end
+
+	while getmetatable(iterator) ~= nil do
+		iterator = iterator:getSuper()
+
+		if iterator.__type == typeName then
+			return true
+		end
+	end
+
+	return false
 end
 
 --[=[
-	Define a new typeof() to work with custom classes.
+	Returns true if the type of self matches the type of other.
+	@param other
 ]=]
-function BaseModule:getType(): string
-	if typeof(self) == "table" then
-		local mt = getmetatable(self)
-		return if mt then mt.__type else "table"
+function BaseModule.typesMatch(self: any, other: any): boolean
+	return (type(self) == "table" and self.__type ~= nil)
+		and (type(other) == "table" and other.__type ~= nil)
+		and (self:instanceOf(other.__type) and other:instanceOf(self.__type))
+end
+
+--[=[
+	Throws an error if the type of self does not match the type of other.
+	@param other
+]=]
+function BaseModule.assertTypesMatch(self: any, other: any): ()
+	if not self:typesMatch(other) then
+		local selfValidType: boolean = (type(self) == "table" and self.__type ~= nil)
+		local otherValidType: boolean = (type(other) == "table" and other.__type ~= nil)
+
+		if selfValidType and otherValidType then
+			error("Parameters are of different types (" .. self.__type .. " ~= " .. other.__type .. ")")
+		elseif selfValidType then
+			error("Parameter(s) are of an invalid type (type: " .. type(other) .. ")")
+		elseif otherValidType then
+			error("Parameter(s) are of an invalid type (type: " .. type(self) .. ")")
+		else
+			error("Neither parameter is a valid type (" .. self.__type .. ", " .. other.__type .. ")")
+		end
 	end
-	return typeof(self)
 end
 
 --[=[
 	Makes a copy of this instance, also copying super-instances.
 --]=]
-function BaseModule:DeepClone(): any
-	local tableStack = { table.clone(self) }
-	local unstack: any = table.clone(self)
-
-	-- pls fix
-	while getmetatable(unstack) do
-		unstack = table.clone(getmetatable(unstack))
-		table.insert(tableStack, unstack)
+function BaseModule:deepClone(): BaseModule
+	if self.__type == "BaseModule" then
+		return self
+	else
+		error("BaseModule deepClone() not implemented for type " .. self.__type)
 	end
-
-	local clone = tableStack[-1]
-
-	for i = #tableStack - 2, -1, -1 do
-		setmetatable(clone, tableStack[i])
-	end
-
-	return clone
 end
 
-return BaseModule
+return BaseModule :: Type.BaseModuleEXTENSIBLE<any>

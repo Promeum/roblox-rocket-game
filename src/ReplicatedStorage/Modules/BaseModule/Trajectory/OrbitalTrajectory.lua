@@ -2,13 +2,17 @@
 
 --[[
 	Performace enhancements:
-
-	Have subparameters to calculate repeated calcs only once, then substitute redundant calcs w/ the variable
+	Make a cache for repeated calcs
 	Find out exactly what operations/methods are computationally expensive
 ]]
 
-local Modules = require(game.ReplicatedStorage.Modules.Modules)
-local MovingObject = require(script.Parent.Parent.Parent.MovingObject)
+local Type = require("../../Type")
+local Constructor = require("../../Constructor")
+local Trajectory = require(".")
+local Constants = require("../../Constants")
+local KinematicState = require("../Relative/State/KinematicState")
+local TemporalState = require("../Relative/State/TemporalState")
+local KinematicTemporalState = require("../KinematicTemporalState")
 
 local OrbitalTrajectory = { __type = "OrbitalTrajectory" :: "OrbitalTrajectory" }
 
@@ -34,44 +38,44 @@ function OrbitalTrajectory.fromMovingObject(movingObject: Modules.MovingObject, 
 
 	setmetatable(newOrbitalTrajectory, metatable)
 
-    local mu: number = orbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
-    local r: Modules.Vector3D = movingObject.Position -- Position vector
-    local rM: number = r:Magnitude() -- Position magnitude
-    local v: Modules.Vector3D = movingObject.Velocity -- Velocity vector
-    local vM: number = v:Magnitude() -- Velocity magnitude
+	local mu: number = orbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
+	local r: Modules.Vector3D = movingObject.Position -- Position vector
+	local rM: number = r:Magnitude() -- Position magnitude
+	local v: Modules.Vector3D = movingObject.Velocity -- Velocity vector
+	local vM: number = v:Magnitude() -- Velocity magnitude
 
-    local visVivaSubParameter: number = 2 * mu * (rM ^ -1) - vM ^ 2
+	local visVivaSubParameter: number = 2 * mu * (rM ^ -1) - vM ^ 2
 
-    metatable["OrbitalPeriod"] = 2 * math.pi * mu * (visVivaSubParameter ^ -1.5)
+	metatable["OrbitalPeriod"] = 2 * math.pi * mu * (visVivaSubParameter ^ -1.5)
 
-    metatable["SemiMajorAxis"] = mu / visVivaSubParameter
+	metatable["SemiMajorAxis"] = mu / visVivaSubParameter
 
-    metatable["SemiMinorAxis"] = r:Cross(v):Magnitude() / math.sqrt(math.abs(visVivaSubParameter))
+	metatable["SemiMinorAxis"] = r:Cross(v):Magnitude() / math.sqrt(math.abs(visVivaSubParameter))
 
-    metatable["Eccentricity"] = (mu * r + (rM * r:Cross(v):Cross(v))):Magnitude() / (mu * rM)
+	metatable["Eccentricity"] = (mu * r + (rM * r:Cross(v):Cross(v))):Magnitude() / (mu * rM)
 
-    metatable["IsBound"] = newOrbitalTrajectory:Eccentricity() <= 1
+	metatable["IsBound"] = newOrbitalTrajectory:Eccentricity() <= 1
 
-    metatable["IsClosed"] = newOrbitalTrajectory:Eccentricity() < 1
+	metatable["IsClosed"] = newOrbitalTrajectory:Eccentricity() < 1
 
-    metatable["TimeToPeriapsis"] = 0
+	metatable["TimeToPeriapsis"] = 0
 
-    metatable["Periapsis"] = newOrbitalTrajectory:CalculatePointFromTrueAnomaly(0)
-    assert(metatable["Periapsis"], `periapsis is nil ({metatable["Periapsis"]})`)
+	metatable["Periapsis"] = newOrbitalTrajectory:CalculatePointFromTrueAnomaly(0)
+	assert(metatable["Periapsis"], `periapsis is nil ({metatable["Periapsis"]})`)
 
-    metatable["Apoapsis"] = if newOrbitalTrajectory:IsBound()
-        then newOrbitalTrajectory:CalculatePointFromTrueAnomaly(math.pi)
-        else nil
+	metatable["Apoapsis"] = if newOrbitalTrajectory:IsBound()
+		then newOrbitalTrajectory:CalculatePointFromTrueAnomaly(math.pi)
+		else nil
 
-    if newOrbitalTrajectory:OrbitalPeriod() == newOrbitalTrajectory:OrbitalPeriod() then
-        metatable["TimeSincePeriapsis"] = newOrbitalTrajectory:CalculateTimeFromPoint(movingObject.Position, 0)
-        metatable["TimeToPeriapsis"] = newOrbitalTrajectory:OrbitalPeriod() - metatable["TimeSincePeriapsis"]
-    else
-        metatable["TimeSincePeriapsis"] = newOrbitalTrajectory:CalculateTimeFromPoint(movingObject.Position, 0)
-        metatable["TimeToPeriapsis"] = -metatable["TimeSincePeriapsis"]
-    end
+	if newOrbitalTrajectory:OrbitalPeriod() == newOrbitalTrajectory:OrbitalPeriod() then
+		metatable["TimeSincePeriapsis"] = newOrbitalTrajectory:CalculateTimeFromPoint(movingObject.Position, 0)
+		metatable["TimeToPeriapsis"] = newOrbitalTrajectory:OrbitalPeriod() - metatable["TimeSincePeriapsis"]
+	else
+		metatable["TimeSincePeriapsis"] = newOrbitalTrajectory:CalculateTimeFromPoint(movingObject.Position, 0)
+		metatable["TimeToPeriapsis"] = -metatable["TimeSincePeriapsis"]
+	end
 
-    newOrbitalTrajectory.SpecificOrbitalEnergy = (vM ^ 2 / 2) - (mu / rM)
+	newOrbitalTrajectory.SpecificOrbitalEnergy = (vM ^ 2 / 2) - (mu / rM)
 
 	return newOrbitalTrajectory
 end
@@ -337,12 +341,12 @@ end
 	@param relativeTime The time passed since the location of this OrbitalTrajectory.
 ]=]
 function OrbitalTrajectory:CalculatePointFromTime(relativeTime: number): Modules.MovingObject
-    local trueAnomalyAngle: number = self:CalculateTrueAnomalyFromTime(relativeTime)
-    assert(trueAnomalyAngle == trueAnomalyAngle, `trueAnomalyAngle is nan ({trueAnomalyAngle})`)
-    
-    local resultPoint: Modules.MovingObject = self:CalculatePointFromTrueAnomaly(trueAnomalyAngle)
+	local trueAnomalyAngle: number = self:CalculateTrueAnomalyFromTime(relativeTime)
+	assert(trueAnomalyAngle == trueAnomalyAngle, `trueAnomalyAngle is nan ({trueAnomalyAngle})`)
+	
+	local resultPoint: Modules.MovingObject = self:CalculatePointFromTrueAnomaly(trueAnomalyAngle)
 
-    return resultPoint
+	return resultPoint
 end
 
 --[=[
@@ -528,10 +532,10 @@ end
 	@param referenceTrueAnomaly The refernce angle of true anomaly. If not provided, defaults to the current true anomaly (between 0 and 2 * math.pi).
 ]=]
 function OrbitalTrajectory:CalculateTimeFromPoint(position: Modules.Vector3D, referenceTrueAnomaly: number?): number
-    local trueAnomalyAngle: number = self:CalculateTrueAnomalyFromPoint(position)
-    assert(trueAnomalyAngle == trueAnomalyAngle, `trueAnomalyAngle is invalid ({trueAnomalyAngle})`)
+	local trueAnomalyAngle: number = self:CalculateTrueAnomalyFromPoint(position)
+	assert(trueAnomalyAngle == trueAnomalyAngle, `trueAnomalyAngle is invalid ({trueAnomalyAngle})`)
 
-    return self:CalculateTimeFromTrueAnomaly(trueAnomalyAngle, referenceTrueAnomaly)
+	return self:CalculateTimeFromTrueAnomaly(trueAnomalyAngle, referenceTrueAnomaly)
 end
 
 --[=[
@@ -608,13 +612,13 @@ end
 	https://www.desmos.com/3d/rfndgd4ppj
 ]=]
 function OrbitalTrajectory:CalculateTimeFromMagnitude(magnitude: number): number
-    local trueAnomalyAngle: number = self:CalculateTrueAnomalyFromMagnitude(magnitude)
-    assert(trueAnomalyAngle == trueAnomalyAngle, `trueAnomalyAngle is nan`)
+	local trueAnomalyAngle: number = self:CalculateTrueAnomalyFromMagnitude(magnitude)
+	assert(trueAnomalyAngle == trueAnomalyAngle, `trueAnomalyAngle is nan`)
 
-    local resultTime: number = self:CalculateTimeFromTrueAnomaly(trueAnomalyAngle)
-    assert(resultTime == resultTime, `resultTime is nan`)
+	local resultTime: number = self:CalculateTimeFromTrueAnomaly(trueAnomalyAngle)
+	assert(resultTime == resultTime, `resultTime is nan`)
 
-    return resultTime
+	return resultTime
 end
 
 --[=[
@@ -622,12 +626,12 @@ end
 	https://www.desmos.com/3d/rfndgd4ppj
 ]=]
 function OrbitalTrajectory:CalculatePointFromMagnitude(magnitude: number): Modules.MovingObject
-    local trueAnomalyAngle: number = self:CalculateTrueAnomalyFromMagnitude(magnitude)
-    assert(trueAnomalyAngle == trueAnomalyAngle, `trueAnomalyAngle is nan`)
+	local trueAnomalyAngle: number = self:CalculateTrueAnomalyFromMagnitude(magnitude)
+	assert(trueAnomalyAngle == trueAnomalyAngle, `trueAnomalyAngle is nan`)
 
-    local resultPoint: Modules.MovingObject = self:CalculatePointFromTrueAnomaly(trueAnomalyAngle)
+	local resultPoint: Modules.MovingObject = self:CalculatePointFromTrueAnomaly(trueAnomalyAngle)
 
-    return resultPoint
+	return resultPoint
 end
 
 return OrbitalTrajectory

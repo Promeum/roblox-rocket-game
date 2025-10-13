@@ -24,15 +24,15 @@ SOFTWARE.
 
 ]]
 
---[[
-    Vector3D: A 64-bit floating point vector module intended to replace
+--[=[
+	Vector3D: A 64-bit floating point vector module intended to replace
 	Roblox's built-in 32-bit floating point Vector3/vector library.
 
 	See Roblox's documentation for the Vector3 and vector libraries
 	for further information on the included functions.
 
-    By Promeum
---]]
+	By Promeum
+--]=]
 
 -- Vector3D
 local Vector3D = {}
@@ -147,7 +147,7 @@ function Vector3D.new(x, y, z)
 	newVector3D.Y = y
 	newVector3D.Z = z
 
-	return newVector3D
+	return table.freeze(newVector3D)
 end
 
 function Vector3D.FromNormalId(normal)
@@ -278,4 +278,5 @@ function Vector3D:ToVector3()
 	return Vector3.new(self.X, self.Y, self.Z)
 end
 
-return Vector3D
+local Vector3DConstructorType = require(script.Parent.Parent.Constructor)
+return (table.freeze(Vector3D) :: any) :: Vector3DConstructorType.Vector3D
