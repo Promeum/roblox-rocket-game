@@ -1,7 +1,7 @@
 --!strict
 
 --[[
-	@TODO: minimumOrbitalIntersectionDistance (MOID)
+	@TODO: MOID
 ]]
 
 local Type = require("../Type")
@@ -37,13 +37,13 @@ function Trajectory.new(
 	kinematicState: Type.KinematicState,
 	temporalState: Type.TemporalState
 ): Trajectory
-	return Trajectory.newFromKinematicTemporalState(KinematicTemporalState.new(kinematicState, temporalState))
+	return Trajectory.fromPosition(KinematicTemporalState.new(kinematicState, temporalState))
 end
 
 --[=[
 	Creates a new Trajectory instance.
 ]=]
-function Trajectory.newFromKinematicTemporalState(kinematicTemporalState: Type.KinematicTemporalState): Trajectory
+function Trajectory.fromPosition(kinematicTemporalState: Type.KinematicTemporalState): Trajectory
 	local self: Trajectory = table.clone(Trajectory) :: any
 	self.kinematicTemporalState = kinematicTemporalState
 
@@ -200,12 +200,8 @@ end
 	@param searchTimeMin The minimum time to search.
 	@param searchTimeMax The maximum time to search.
 ]=]
-function Trajectory:minimumOrbitalIntersectionDistance(
-	other: Trajectory,
-	searchTimeMin: number,
-	searchTimeMax: number
-): Type.KinematicTemporalState
-	error("Trajectory minimumOrbitalIntersectionDistance() not implemented for type " .. self.__type)
+function Trajectory:MOID(other: Trajectory): Type.KinematicTemporalState
+	error("Trajectory MOID() not implemented for type " .. self.__type)
 	-- local otherTrajectoryTemporal = self.TemporalState:MatchRelative(trajectory.TemporalState)
 	-- local fixedSearchTimeMin = self.TemporalState:MatchRelative(searchTimeMin)
 	-- local fixedSearchTimeMax = self.TemporalState:MatchRelative(searchTimeMax)
@@ -367,7 +363,7 @@ end
 
 	@param position The position to be reached (may have already been reached if the current orbit is hyperbolic).
 ]=]
-function Trajectory:calculateTimeFromPoint(position: Type.Vector3D): Type.TemporalState
+function Trajectory:calculateTimeFromPoint(position: Type.Vector3D): number
 	error("Trajectory calculateTimeFromPoint() not implemented for type " .. self.__type)
 end
 
@@ -380,11 +376,11 @@ end
 	@param position The position to be reached (may have already been reached if the current orbit is hyperbolic).
 ]=]
 function Trajectory:calculatePositionFromPoint(position: Type.Vector3D): Type.KinematicTemporalState
-	local timeFromPoint: Type.TemporalState = self:calculateTimeFromPoint(position)
+	local timeFromPoint: number = self:calculateTimeFromPoint(position)
 
 	return KinematicTemporalState.new(
-		self:calculatePointFromTime(timeFromPoint:getRelativeTime()),
-		timeFromPoint
+		self:calculatePointFromTime(timeFromPoint),
+		TemporalState.newRelativeTime(timeFromPoint, self:getStartPosition():getTemporalState())
 	)
 end
 
@@ -394,7 +390,7 @@ end
 	Time can be either negative or positive if the trajectory is a hyperbola, or only positive if the orbit is closed.
 	https://www.desmos.com/3d/rfndgd4ppj
 ]=]
-function Trajectory:calculateTimeFromMagnitude(magnitude: number): Type.TemporalState
+function Trajectory:calculateTimeFromMagnitude(magnitude: number): number
 	error("Trajectory calculateTimeFromMagnitude() not implemented for type " .. self.__type)
 end
 
@@ -403,7 +399,7 @@ end
 	https://www.desmos.com/3d/rfndgd4ppj
 ]=]
 function Trajectory:calculatePointFromMagnitude(magnitude: number): Type.KinematicState
-	return self:calculatePointFromTime(self:calculateTimeFromMagnitude(magnitude):getRelativeTime())
+	return self:calculatePointFromTime(self:calculateTimeFromMagnitude(magnitude))
 end
 
 --[=[
@@ -411,7 +407,7 @@ end
 	https://www.desmos.com/3d/rfndgd4ppj
 ]=]
 function Trajectory:calculatePositionFromMagnitude(magnitude: number): Type.KinematicTemporalState
-	return self:calculatePositionFromTime(self:calculateTimeFromMagnitude(magnitude):getRelativeTime())
+	return self:calculatePositionFromTime(self:calculateTimeFromMagnitude(magnitude))
 end
 
 --[=[

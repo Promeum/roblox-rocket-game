@@ -1,15 +1,17 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- !strict
 
-local KinematicState = require(ReplicatedStorage.Modules.BaseModule.Relative.State.KinematicState)
-local TemporalState = require(ReplicatedStorage.Modules.BaseModule.Relative.State.TemporalState)
-local Vector3D = require(ReplicatedStorage.Modules.Libraries.Vector3D)
+--[[
+	TODO
+	hasNextTrajectory
+]]
+
+local Vector3D = require("../../Libraries/Vector3D")
 local Type = require("../../Type")
 local Constructor = require("../../Constructor")
+local Globals = require("../../../Globals")
 local Trajectory = require(".")
--- local Constants = require("../../Constants")
--- local KinematicState = require("../Relative/State/KinematicState")
--- local TemporalState = require("../Relative/State/TemporalState")
+local KinematicState = require("../Relative/State/KinematicState")
+local TemporalState = require("../Relative/State/TemporalState")
 local KinematicTemporalState = require("../KinematicTemporalState")
 
 -- Internal type
@@ -20,7 +22,7 @@ type LinearTrajectory = Type.LinearTrajectoryEXTENSIBLE<LinearTrajectory,
 	& Constructor.LinearTrajectoryEXTENSIBLE<LinearTrajectory>
 	& {
 	cache: {
-		nextTrajectory: LinearTrajectory | false | nil,
+		nextTrajectory: Type.OrbitalTrajectory | false | nil,
 		nextTrajectoryDirection: "in" | false | nil,
 		nextSOI: Type.GravityCelestial | false | nil
 	}
@@ -38,21 +40,35 @@ function LinearTrajectory.new(
 	kinematicState: Type.KinematicState,
 	temporalState: Type.TemporalState
 ): LinearTrajectory
-	return LinearTrajectory.newFromKinematicTemporalState(KinematicTemporalState.new(kinematicState, temporalState))
+	return LinearTrajectory.fromPosition(KinematicTemporalState.new(kinematicState, temporalState))
 end
 
 --[=[
 	Creates a new LinearTrajectory instance.
 ]=]
-function LinearTrajectory.newFromKinematicTemporalState(kinematicTemporalState: Type.KinematicTemporalState): LinearTrajectory
+function LinearTrajectory.fromPosition(position: Type.KinematicTemporalState): LinearTrajectory
 	local self: LinearTrajectory = table.clone(LinearTrajectory) :: any
 
 	local metatable = table.clone(LinearTrajectoryMT)
-	metatable.__index = Trajectory.newFromKinematicTemporalState(kinematicTemporalState)
+	metatable.__index = Trajectory.fromPosition(position)
 
 	setmetatable(self, metatable)
 
 	return self
+end
+
+--[=[
+	The quadratic formula, adjusted so it will work with kinematic vectors.
+	Cannot be used with regular numbers as the coefficients 4 and 2 are not here.
+]=]
+function quadraticFormula(a: number, b: number, c: number): (number, number)
+	return (
+		(-b - math.sqrt(b^2 - a * c))
+		/ a
+	), (
+		(-b + math.sqrt(b^2 - a * c))
+		/ a
+	)
 end
 
 --[=[
@@ -62,13 +78,57 @@ end
 ]=]
 function LinearTrajectory:hasNextTrajectory(): boolean
 	-- check cache
-	local nextTrajectoryDirection: "in" | false | nil = self.cache.nextTrajectoryDirection
-	local nextTrajectory: Type.TrajectoryEXTENSIBLE<any, any> | false | nil = self.cache.nextTrajectory
+	if self.cache.nextTrajectoryDirection ~= nil then
+		return self.cache.nextTrajectoryDirection == "in"
+	else -- calculate next trajectory
+		if #Globals.rootGravityCelestials > 0 then
+			local selfPosition: Type.KinematicTemporalState = self:getStartPosition():getKinematicState()
+			local closestSOIEntryTime: number? = nil
+			local closestCelestialSOI: Type.GravityCelestial
 
-	if nextTrajectoryDirection ~= nil then
-		return nextTrajectoryDirection == "in"
-	else
-		-- calculate
+			-- calculate SOI entry for all root GravityCelestials
+			for _, gravityCelestial in Globals.rootGravityCelestials do
+				local otherPosition: Type.KinematicTemporalState = gravityCelestial.trajectory:getStartPosition():getKinematicState()
+
+				assert(selfPosition:sameRelativeTree(otherPosition),
+					"self and gravityCelestial start positions are not relative to the same thing")
+
+				-- distance vector relative to self
+				local distancePoint: Type.Vector3D = selfPosition:getPosition() - otherPosition:getPosition()
+				local distanceVelocity: Type.Vector3D = selfPosition:getVelocity() - otherPosition:getVelocity()
+
+				-- solve for time(s)
+				local SOIEntryTimes: { number } = table.pack(quadraticFormula(
+					distanceVelocity:Dot(distanceVelocity),
+					distanceVelocity:Dot(distancePoint),
+					distancePoint:Dot(distancePoint) - gravityCelestial:SOIRadius()
+				))
+
+				-- get first valid SOI entry time
+				table.sort(SOIEntryTimes)
+				local SOIEntryTime: number = if SOIEntryTimes[1] >= 0 then SOIEntryTimes[1] else SOIEntryTimes[2]
+
+				-- set new closest (or keep current closest) SOI
+				if SOIEntryTime == SOIEntryTime and SOIEntryTime < closestSOIEntryTime then -- nan check
+					closestSOIEntryTime = SOIEntryTime
+					closestCelestialSOI = gravityCelestial
+				end
+			end
+
+			if closestSOIEntryTime then -- trajectory enters an SOI
+				self.cache.nextTrajectory = self:atTime(closestSOIEntryTime)
+				self.cache.nextTrajectoryDirection = "in"
+				self.cache.nextSOI = closestCelestialSOI:SOIRadius()
+			else -- trajectory misses all root GravityCelestial SOIs
+				self.cache.nextTrajectory = false
+				self.cache.nextTrajectoryDirection = false
+				self.cache.nextSOI = false
+			end
+		else -- no root GravityCelestials exist (i.e. space is empty)
+			self.cache.nextTrajectory = false
+			self.cache.nextTrajectoryDirection = false
+			self.cache.nextSOI = false
+		end
 
 		return self:hasNextTrajectory()
 	end
@@ -81,18 +141,18 @@ end
 	@param trajectory The LinearTrajectory of the other body.
 	@param searchTimeMin The minimum time to search.
 	@param searchTimeMax The maximum time to search.
+
+	@return The KinematicTemporalState representing the MOID position, pointing from self to other.
 ]=]
-function LinearTrajectory:minimumOrbitalIntersectionDistance(
-	other: LinearTrajectory,
-	searchTimeMin: number,
-	searchTimeMax: number
-): Type.KinematicTemporalState
+function LinearTrajectory:MOID(other: LinearTrajectory): Type.KinematicTemporalState
+	local selfStartTemporal: Type.TemporalState = self:getStartPosition():getTemporalState()
 	local selfStart: Type.KinematicState = self:getStartPosition()
+
 	local otherStartTemporal: Type.TemporalState = other:getStartPosition():getTemporalState()
 		:matchRelative(self:getStartPosition():getTemporalState())
-	local otherStart: Type.KinematicState = other:atTime(otherStartTemporal:getRelativeTime())
-		:getStartPosition():getKinematicState()
-	
+	local otherAdjusted: LinearTrajectory = other:atTime(otherStartTemporal:getRelativeTime())
+	local otherStart: Type.KinematicState = otherAdjusted:getStartPosition():getKinematicState()
+
 	assert(selfStart:sameRelativeTree(otherStart), "relative trees different")
 
 	local p1: Type.Vector3D = selfStart:getPosition()
@@ -100,9 +160,16 @@ function LinearTrajectory:minimumOrbitalIntersectionDistance(
 	local v1: Type.Vector3D = selfStart:getVelocity()
 	local v2: Type.Vector3D = otherStart:getVelocity()
 
-	local MOIDTime: number = - (p1 - p2):Dot(v1 - v2) / ((v1 - v2):Magnitude() ^ 2)
+	-- time formula
+	local resultMoidTime: number = - (p1 - p2):Dot(v1 - v2) / ((v1 - v2):Magnitude() ^ 2)
+	-- difference between kinematics at MOID, relative to self
+	local resultKinematic: Type.KinematicState = otherAdjusted:calculatePointFromTime(resultMoidTime)
+		- self:calculatePointFromTime(resultMoidTime)
 
-	return self:calculatePositionFromTime(MOIDTime)
+	return KinematicTemporalState.new(
+		KinematicState.newFromKinematicState(resultKinematic, selfStart),
+		TemporalState.newRelativeTime(resultMoidTime, selfStartTemporal)
+	)
 end
 
 --[=[
@@ -124,24 +191,21 @@ end
 	Calculates the time of closest approach to position.
 	Note: Calculated time may be negative.
 ]=]
-function LinearTrajectory:calculateTimeFromPoint(position: Type.Vector3D): Type.TemporalState
+function LinearTrajectory:calculateTimeFromPoint(position: Type.Vector3D): number
 	local startPosition: Type.KinematicTemporalState = self:getStartPosition()
 
 	-- Transform position relative to this LinearTrajectory
-	local transformedTargetPoint: Type.Vector3D = position - self:getStartPosition():getPosition()
+	local transformedTargetPoint: Type.Vector3D = position - startPosition:getPosition()
 
 	-- Find magnitude of the target point as if it was already projected to the velocity vector
-	return TemporalState.new(
-		transformedTargetPoint:Dot(self:getStartPosition():getVelocity()),
-		startPosition:getTemporalState()
-	)
+	return transformedTargetPoint:Dot(startPosition:getVelocity())
 end
 
 --[=[
 	Calculates the time at which this LinearTrajectory will be magnitude meters away from its current position.
 	Note: magnitude, and calculated time, may be negative.
 ]=]
-function LinearTrajectory:calculateTimeFromMagnitude(magnitude: number): Type.TemporalState
+function LinearTrajectory:calculateTimeFromMagnitude(magnitude: number): number
 	-- Magnitude(Velocity) => Speed (in units / second)
 	return magnitude / self:getStartPosition():getVelocity():Magnitude()
 end

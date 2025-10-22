@@ -73,6 +73,7 @@ end
 	Creates a new TemporalState instance.
 ]=]
 function TemporalState.new(relativeTime: number, relativeTo: TemporalState?): TemporalState
+	assert(relativeTime == relativeTime, "TemporalState new() relativeTime is nan (relativeTime = " .. relativeTime .. ")")
 	local self: TemporalState = table.clone(TemporalState) :: any
 	self.relativeTime = relativeTime
 
@@ -88,19 +89,7 @@ end
 	Creates a new TemporalState instance by setting the relativeTime of a TemporalState.
 ]=]
 function TemporalState.newRelativeTime(relativeTime: number, temporalState: TemporalState): TemporalState
-	local self: TemporalState = table.clone(TemporalState) :: any
-	self.relativeTime = relativeTime
-
-	local metatable = table.clone(TemporalStateMT)
-	if temporalState:hasRelative() then
-		metatable.__index = State.new(temporalState:getRelative())
-	else
-		metatable.__index = State.new()
-	end
-
-	setmetatable(self, metatable)
-
-	return self
+	return TemporalState.new(relativeTime, temporalState:getRelativeOrNil())
 end
 
 --[=[

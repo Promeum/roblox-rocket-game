@@ -9,169 +9,202 @@
 local Type = require("../../Type")
 local Constructor = require("../../Constructor")
 local Trajectory = require(".")
-local Constants = require("../../Constants")
 local KinematicState = require("../Relative/State/KinematicState")
-local TemporalState = require("../Relative/State/TemporalState")
 local KinematicTemporalState = require("../KinematicTemporalState")
 
-local OrbitalTrajectory = { __type = "OrbitalTrajectory" :: "OrbitalTrajectory" }
+-- Internal type
+type OrbitalTrajectory = Type.OrbitalTrajectoryEXTENSIBLE<OrbitalTrajectory,
+		Type.TrajectoryEXTENSIBLE<OrbitalTrajectory,
+				Type.BaseModuleEXTENSIBLE<OrbitalTrajectory
+	>>>
+	& Constructor.OrbitalTrajectoryEXTENSIBLE<OrbitalTrajectory>
+	& {
+	orbitingBody: Type.GravityCelestial,
+	cache: {
+		nextTrajectory: OrbitalTrajectory | Type.LinearTrajectory | false | nil,
+		nextTrajectoryDirection: "in" | "out" | false | nil,
+		nextOrbiting: Type.GravityCelestial | false | nil,
+		-- Orbital parameters
+		period: number,
+		timeToPeriapsis: number,
+		timeSincePeriapsis: number,
+		apoapsis: Type.KinematicState | false,
+		periapsis: Type.KinematicState,
+		semiMajorAxis: number,
+		semiMinorAxis: number,
+		eccentricity: number,
+		isBound: boolean,
+		isClosed: boolean,
+		specificOrbitalEnergy: number,
+		-- Quick access kinematics
+		mu: number, -- Standard gravitational parameter
+		r: Type.Vector3D, -- Position vector
+		rM: number, -- Position magnitude
+		v: Type.Vector3D, -- Velocity vector
+		vM: number, -- Velocity magnitude
+	},
+	recursiveTrueAnomalyHelper: (self: OrbitalTrajectory, recursions: number, periapsisRelativeTime: number) -> number,
+}
+
+local OrbitalTrajectory: OrbitalTrajectory = { __type = "OrbitalTrajectory" :: "OrbitalTrajectory" } :: any
+local OrbitalTrajectoryMT = {}
 
 --[=[
 	Creates a new OrbitalTrajectory instance.
 ]=]
-function OrbitalTrajectory.new(position: Modules.Vector3D, velocity: Modules.Vector3D, orbitingBody: Modules.GravityBody): Modules.OrbitalTrajectory
-	return OrbitalTrajectory.fromMovingObject(MovingObject.new(position, velocity), orbitingBody)
+function OrbitalTrajectory.new(
+	kinematicState: Type.KinematicState,
+	temporalState: Type.TemporalState,
+	orbitingBody: Type.GravityCelestial
+): OrbitalTrajectory
+	return OrbitalTrajectory.fromPosition(KinematicTemporalState.new(kinematicState, temporalState), orbitingBody)
 end
 
 --[=[
-	Creates a new OrbitalTrajectory instance, with a given SolarSystemObject super-instance.
-	This effectively links this instance with other objects with the same super-instance.
+	Creates a new OrbitalTrajectory instance.
 ]=]
-function OrbitalTrajectory.fromMovingObject(movingObject: Modules.MovingObject, orbitingBody: Modules.GravityBody): Modules.OrbitalTrajectory
-	local newOrbitalTrajectory = table.clone(OrbitalTrajectory)
+function OrbitalTrajectory.fromPosition(
+	position: Type.KinematicTemporalState,
+	orbitingBody: Type.GravityCelestial
+): OrbitalTrajectory
+	local self: OrbitalTrajectory = table.clone(OrbitalTrajectory) :: any
 
-	newOrbitalTrajectory.OrbitingBody = orbitingBody
+	local metatable = table.clone(OrbitalTrajectoryMT)
+	metatable.__index = Trajectory.fromPosition(position)
 
-	local metatable = {
-		__index = movingObject,
-	}
+	setmetatable(self, metatable)
 
-	setmetatable(newOrbitalTrajectory, metatable)
+	-- Quick access kinematics
+	
+	self.cache.mu = orbitingBody:mu() -- Standard gravitational parameter
+	self.cache.r = position:getPosition() -- Position vector
+	self.cache.rM = self.cache.r:Magnitude() -- Position magnitude
+	self.cache.v = position:getVelocity() -- Velocity vector
+	self.cache.vM = self.cache.v:Magnitude() -- Velocity magnitude
 
-	local mu: number = orbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
-	local r: Modules.Vector3D = movingObject.Position -- Position vector
-	local rM: number = r:Magnitude() -- Position magnitude
-	local v: Modules.Vector3D = movingObject.Velocity -- Velocity vector
-	local vM: number = v:Magnitude() -- Velocity magnitude
+	local mu: number = self.cache.mu
+	local r: Type.Vector3D = self.cache.r
+	local rM: number = self.cache.rM
+	local v: Type.Vector3D = self.cache.v
+	local vM: number = self.cache.vM
 
 	local visVivaSubParameter: number = 2 * mu * (rM ^ -1) - vM ^ 2
 
-	metatable["OrbitalPeriod"] = 2 * math.pi * mu * (visVivaSubParameter ^ -1.5)
+	-- Orbital parameters
 
-	metatable["SemiMajorAxis"] = mu / visVivaSubParameter
+	self.cache.period = 2 * math.pi * mu * (visVivaSubParameter ^ -1.5)
 
-	metatable["SemiMinorAxis"] = r:Cross(v):Magnitude() / math.sqrt(math.abs(visVivaSubParameter))
+	self.cache.semiMajorAxis = mu / visVivaSubParameter
 
-	metatable["Eccentricity"] = (mu * r + (rM * r:Cross(v):Cross(v))):Magnitude() / (mu * rM)
+	self.cache.semiMinorAxis = r:Cross(v):Magnitude() / math.sqrt(math.abs(visVivaSubParameter))
 
-	metatable["IsBound"] = newOrbitalTrajectory:Eccentricity() <= 1
+	self.cache.eccentricity = (mu * r + (rM * r:Cross(v):Cross(v))):Magnitude() / (mu * rM)
 
-	metatable["IsClosed"] = newOrbitalTrajectory:Eccentricity() < 1
+	self.cache.isBound = self.cache.eccentricity <= 1
 
-	metatable["TimeToPeriapsis"] = 0
+	self.cache.isClosed = self.cache.eccentricity < 1
 
-	metatable["Periapsis"] = newOrbitalTrajectory:CalculatePointFromTrueAnomaly(0)
-	assert(metatable["Periapsis"], `periapsis is nil ({metatable["Periapsis"]})`)
+	self.cache.timeToPeriapsis = 0
 
-	metatable["Apoapsis"] = if newOrbitalTrajectory:IsBound()
-		then newOrbitalTrajectory:CalculatePointFromTrueAnomaly(math.pi)
-		else nil
+	self.cache.periapsis = self:calculatePointFromTrueAnomaly(0)
+	assert(self.cache.periapsis, `periapsis is nil ({self.cache.periapsis})`)
 
-	if newOrbitalTrajectory:OrbitalPeriod() == newOrbitalTrajectory:OrbitalPeriod() then
-		metatable["TimeSincePeriapsis"] = newOrbitalTrajectory:CalculateTimeFromPoint(movingObject.Position, 0)
-		metatable["TimeToPeriapsis"] = newOrbitalTrajectory:OrbitalPeriod() - metatable["TimeSincePeriapsis"]
+	self.cache.apoapsis = if self.cache.isBound
+		then self:calculatePointFromTrueAnomaly(math.pi)
+		else false
+
+	if self.cache.period == self.cache.period then
+		self.cache.timeSincePeriapsis = self:calculateTimeFromPoint(r)
+		self.cache.timeToPeriapsis = self.cache.period - self.cache.timeSincePeriapsis
 	else
-		metatable["TimeSincePeriapsis"] = newOrbitalTrajectory:CalculateTimeFromPoint(movingObject.Position, 0)
-		metatable["TimeToPeriapsis"] = -metatable["TimeSincePeriapsis"]
+		self.cache.timeSincePeriapsis = self:calculateTimeFromPoint(r)
+		self.cache.timeToPeriapsis = -self.cache.timeSincePeriapsis
 	end
 
-	newOrbitalTrajectory.SpecificOrbitalEnergy = (vM ^ 2 / 2) - (mu / rM)
+	self.cache.specificOrbitalEnergy = (vM ^ 2 / 2) - (mu / rM)
 
-	return newOrbitalTrajectory
+	return self
 end
+
+-- Methods
+
+-- Accessors
+
+--[=[
+	OrbitalTrajectory
+]=]
+function OrbitalTrajectory:orbiting(): Type.GravityCelestial return self.orbitingBody end
 
 --[=[
 	Returns the orbital period.
 	https://en.wikipedia.org/wiki/Orbital_elements
 ]=]
-function OrbitalTrajectory:OrbitalPeriod(): number
-	return getmetatable(self)["OrbitalPeriod"]
-end
+function OrbitalTrajectory:period(): number return self.cache.period end
 
 --[=[
-	Returns the time (in seconds) to the next periapsis.
-	Should always be positive if orbit is bound. Otherwise, may be negative if past the periapsis (since the orbit is a hyperbola).
-	https://en.wikipedia.org/wiki/Orbital_elements
+	OrbitalTrajectory
 ]=]
-function OrbitalTrajectory:TimeToPeriapsis(): number
-	return getmetatable(self)["TimeToPeriapsis"]
-end
-
---[=[
-	Returns the time (in seconds) since the last periapsis.
-	Should always be positive if orbit is bound. Otherwise, may be negative if not past the periapsis (since the orbit is a hyperbola).
-	https://en.wikipedia.org/wiki/Orbital_elements
-]=]
-function OrbitalTrajectory:TimeSincePeriapsis(): number
-	return getmetatable(self)["TimeSincePeriapsis"]
-end
+function OrbitalTrajectory:hasApoapsis(): boolean return self.cache.apoapsis ~= false end
 
 --[=[
 	Returns the apoapsis.
 	https://en.wikipedia.org/wiki/Orbital_elements
 ]=]
-function OrbitalTrajectory:Apoapsis(): Modules.MovingObject
-	return getmetatable(self)["Apoapsis"]
+function OrbitalTrajectory:apoapsis(): Type.KinematicState
+	assert(self.cache.apoapsis ~= false, "OrbitalTrajectory apoapsis() Cannot call apoapsis() on an OrbitalTrajectory with no apoapsis")
+	return self.cache.apoapsis
 end
 
 --[=[
 	Returns the periapsis.
 	https://en.wikipedia.org/wiki/Orbital_elements
 ]=]
-function OrbitalTrajectory:Periapsis(): Modules.MovingObject
-	return getmetatable(self)["Periapsis"]
-end
+function OrbitalTrajectory:periapsis(): Type.KinematicState return self.cache.periapsis end
+
+
 
 --[=[
 	Returns the semi major axis.
 	https://en.wikipedia.org/wiki/Vis-viva_equation
 ]=]
-function OrbitalTrajectory:SemiMajorAxis(): number
-	return getmetatable(self)["SemiMajorAxis"]
-end
+function OrbitalTrajectory:semiMajorAxis(): number return self.cache.semiMajorAxis end
 
 --[=[
 	Returns the semi minor axis.
 	https://en.wikipedia.org/wiki/Orbital_elements
 ]=]
-function OrbitalTrajectory:SemiMinorAxis(): number
-	return getmetatable(self)["SemiMinorAxis"]
-end
+function OrbitalTrajectory:semiMinorAxis(): number return self.cache.semiMinorAxis end
 
 --[=[
 	Returns the eccentricity.
 	https://en.wikipedia.org/wiki/Eccentricity_vector
 ]=]
-function OrbitalTrajectory:Eccentricity(): number
-	return getmetatable(self)["Eccentricity"]
-end
+function OrbitalTrajectory:eccentricity(): number return self.cache.eccentricity end
+
 
 --[=[
 	Returns true if this trajectory is a bound orbit (eccentricity <= 1) and false otherwise.
 ]=]
-function OrbitalTrajectory:IsBound(): boolean
-	return getmetatable(self)["IsBound"]
-end
+function OrbitalTrajectory:isBound(): boolean return self.cache.isBound end
 
 --[=[
 	Returns true if this trajectory is a closed orbit (eccentricity < 1) and false otherwise.
 ]=]
-function OrbitalTrajectory:IsClosed(): boolean
-	return getmetatable(self)["IsClosed"]
-end
+function OrbitalTrajectory:isClosed(): boolean return self.cache.isClosed end
+
+-- Calculators
 
 --[=[
-	Helper method for CalculateTrueAnomalyFromTime().
+	Helper method for calculateTrueAnomalyFromTime().
 	Apparently a calculation for eccentric anomaly using Kepler's Equation solved via the Newton-Raphson Method.
-	Returns nil if there is no GravityBody being orbited.
 	https://www.desmos.com/3d/rfndgd4ppj
 ]=]
-function OrbitalTrajectory:RecursiveTrueAnomalyHelper(recursions: number, periapsisRelativeTime: number): number
-	local mu: number = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
-	local r: Modules.Vector3D = self.Position -- Position vector
-	local rM: number = r:Magnitude() -- Position magnitude
-	local v: Modules.Vector3D = self.Velocity -- Velocity vector
-	local vM: number = v:Magnitude() -- Velocity magnitude
+function OrbitalTrajectory:recursiveTrueAnomalyHelper(recursions: number, periapsisRelativeTime: number): number
+	local mu: number = self.cache.mu
+	local r: Type.Vector3D = self.cache.r
+	local rM: number = self.cache.rM
+	local v: Type.Vector3D = self.cache.v
+	local vM: number = self.cache.vM
 	local t: number = periapsisRelativeTime
 
 	if recursions == 0 then -- base case
@@ -188,16 +221,16 @@ function OrbitalTrajectory:RecursiveTrueAnomalyHelper(recursions: number, periap
 							^ 2
 						- 1
 				)
-		elseif
+		elseif (
 			(math.pi - 1 + (mu * r + rM * r:Cross(v):Cross(v)):Magnitude() / (mu * rM))
 			<= math.abs((((t / mu) * (2 * mu * (rM ^ -1) - vM ^ 2) ^ 1.5) % (2 * math.pi)) - math.pi)
-		then
+		) then
 			-- print(2)
 			return math.pi * (2 * math.round((t / (2 * math.pi * mu)) * math.abs(2 * mu * (rM ^ -1) - vM ^ 2) ^ 1.5))
-		elseif
+		elseif (
 			math.abs((((t / mu) * (2 * mu * (rM ^ -1) - vM ^ 2) ^ 1.5) % (2 * math.pi)) - math.pi)
 			<= (1 + (mu * r + rM * r:Cross(v):Cross(v)):Magnitude() / (mu * rM))
-		then
+		) then
 			-- print(3)
 			return math.pi
 				* (2 * math.floor((t / (2 * math.pi * mu)) * math.abs(2 * mu * (rM ^ -1) - vM ^ 2) ^ 1.5) + 1)
@@ -206,7 +239,7 @@ function OrbitalTrajectory:RecursiveTrueAnomalyHelper(recursions: number, periap
 			return math.pi * (math.floor((t / (math.pi * mu)) * math.abs(2 * mu * (rM ^ -1) - vM ^ 2) ^ 1.5) + 0.5)
 		end
 	else -- non-base case
-		local prevRecursion: number = self:RecursiveTrueAnomalyHelper(recursions - 1, periapsisRelativeTime)
+		local prevRecursion: number = self:recursiveTrueAnomalyHelper(recursions - 1, periapsisRelativeTime)
 		assert(prevRecursion == prevRecursion, `prevRecursion is nan ({prevRecursion})`)
 
 		-- print(`recursion {recursions - 1}`)
@@ -238,16 +271,16 @@ end
 	https://en.wikipedia.org/wiki/True_anomaly
 	https://www.desmos.com/3d/rfndgd4ppj
 ]=]
-function OrbitalTrajectory:CalculateTrueAnomalyFromTime(relativeTime: number): number
-	local mu: number = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
-	local r: Modules.Vector3D = self.Position -- Position vector
-	local rM: number = r:Magnitude() -- Position magnitude
-	local v: Modules.Vector3D = self.Velocity -- Velocity vector
-	local vM: number = v:Magnitude() -- Velocity magnitude
+function OrbitalTrajectory:calculateTrueAnomalyFromTime(relativeTime: number): number
+	local mu: number = self.cache.mu
+	local r: Type.Vector3D = self.cache.r
+	local rM: number = self.cache.rM
+	local v: Type.Vector3D = self.cache.v
+	local vM: number = self.cache.vM
 
-	local timeSincePeriapsis: number = self:TimeSincePeriapsis()
+	local timeSincePeriapsis: number = self.cache.timeSincePeriapsis
 	local periapsisRelativeTime: number = timeSincePeriapsis + relativeTime
-	local TrueAnomalyHelperResult: number = self:RecursiveTrueAnomalyHelper(8, periapsisRelativeTime)
+	local TrueAnomalyHelperResult: number = self:recursiveTrueAnomalyHelper(8, periapsisRelativeTime)
 
 	if (rM * vM ^ 2) < (2 * mu) then --self:IsClosed() then -- orbit is not hyperbolic, eccentricity < 1
 		return (
@@ -279,48 +312,50 @@ end
 	https://en.wikipedia.org/wiki/True_anomaly
 	https://www.desmos.com/3d/rfndgd4ppj
 ]=]
-function OrbitalTrajectory:CalculatePointFromTrueAnomaly(trueAnomaly: number): Modules.MovingObject
-	local mu: number = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
-	local r: Modules.Vector3D = self.Position -- Position vector
-	local rM: number = r:Magnitude() -- Position magnitude
-	local v: Modules.Vector3D = self.Velocity -- Velocity vector
-	local vM: number = v:Magnitude() -- Velocity magnitude
+function OrbitalTrajectory:calculatePointFromTrueAnomaly(trueAnomaly: number): Type.KinematicState
+	local mu: number = self.cache.mu
+	local r: Type.Vector3D = self.cache.r
+	local rM: number = self.cache.rM
+	local v: Type.Vector3D = self.cache.v
+	local vM: number = self.cache.vM
 
-	if self:Eccentricity() == 0 then -- orbit is a circle
-		return MovingObject.new(
+	if self.cache.eccentricity == 0 then -- orbit is a circle
+		return KinematicState.new(
 			((math.sin(trueAnomaly) * r:Cross(v):Cross(r)) + (math.cos(trueAnomaly) * r:Cross(v):Magnitude() * r))
 				/ r:Cross(v):Magnitude(),
 			((math.cos(trueAnomaly) * r:Cross(v):Cross(r)) - (math.sin(trueAnomaly) * r:Cross(v):Magnitude() * r))
 				/ (rM * r:Cross(v):Magnitude())
 				* vM
 		)
-	elseif
-		self:IsClosed()
+	elseif (
+		self.cache.isClosed
 		or ( -- check range of true anomaly of hyperbolic orbit
-			not self:IsClosed()
+			not self.cache.isClosed
 			and -math.acos(-(mu * rM) / (mu * r + rM * r:Cross(v):Cross(v)):Magnitude()) < math.abs(trueAnomaly) % (2 * math.pi) * math.sign(
 				trueAnomaly
 			)
 			and math.abs(trueAnomaly) % (2 * math.pi) * math.sign(trueAnomaly)
 				< math.acos(-(mu * rM) / (mu * r + rM * r:Cross(v):Cross(v)):Magnitude())
 		)
-	then -- orbit is any other conic section
+	) then -- orbit is any other conic section
 		-- note: for velocity, the mu that multiplies with the entire fraction was moved to denominator to counter floating point errors (the big fraction should not end up as (0,0,0))
 		-- another note: really think about implementing arbitrary-precision arithmetic
-		return MovingObject.new(
+		return KinematicState.new(
 			(r:Cross(v):Magnitude() * rM)
-				/ (-(mu * r + rM * r:Cross(v):Cross(v)):Magnitude() * (math.cos(trueAnomaly) * (
-					mu * r + rM * r:Cross(v):Cross(v)
-				):Magnitude() + mu * rM))
-				* (
-					(math.sin(trueAnomaly) * (mu * r:Cross(v):Cross(r) - rM * r:Cross(v):Magnitude() ^ 2 * v))
-					+ (math.cos(trueAnomaly) * r:Cross(v):Magnitude() * (mu * r + rM * r:Cross(v):Cross(v)))
-				),
+			/ (
+				-(mu * r + rM * r:Cross(v):Cross(v)):Magnitude()
+				* (math.cos(trueAnomaly) * (mu * r + rM * r:Cross(v):Cross(v)):Magnitude() + mu * rM)
+			) * (
+				(math.sin(trueAnomaly) * (mu * r:Cross(v):Cross(r) - rM * r:Cross(v):Magnitude() ^ 2 * v))
+				+ (math.cos(trueAnomaly) * r:Cross(v):Magnitude() * (mu * r + rM * r:Cross(v):Cross(v)))
+			),
 			(
 				(
 					-(math.cos(trueAnomaly) * (mu * r:Cross(v):Cross(r) - rM * r:Cross(v):Magnitude() ^ 2 * v))
 					+ (math.sin(trueAnomaly) * r:Cross(v):Magnitude() * (mu * r + rM * r:Cross(v):Cross(v)))
-				) / ((r:Cross(v):Magnitude() ^ 2) * (mu * r + rM * r:Cross(v):Cross(v)):Magnitude() / mu)
+				) / (
+					(r:Cross(v):Magnitude() ^ 2) * (mu * r + rM * r:Cross(v):Cross(v)):Magnitude() / mu
+				)
 			)
 				- ((mu * r:Cross(v):Cross(r)) / ((r:Cross(v):Magnitude() ^ 2) * rM))
 				+ v
@@ -340,11 +375,11 @@ end
 
 	@param relativeTime The time passed since the location of this OrbitalTrajectory.
 ]=]
-function OrbitalTrajectory:CalculatePointFromTime(relativeTime: number): Modules.MovingObject
-	local trueAnomalyAngle: number = self:CalculateTrueAnomalyFromTime(relativeTime)
+function OrbitalTrajectory:calculatePointFromTime(relativeTime: number): Type.KinematicState
+	local trueAnomalyAngle: number = self:calculateTrueAnomalyFromTime(relativeTime)
 	assert(trueAnomalyAngle == trueAnomalyAngle, `trueAnomalyAngle is nan ({trueAnomalyAngle})`)
 	
-	local resultPoint: Modules.MovingObject = self:CalculatePointFromTrueAnomaly(trueAnomalyAngle)
+	local resultPoint: Type.KinematicState = self:calculatePointFromTrueAnomaly(trueAnomalyAngle)
 
 	return resultPoint
 end
@@ -356,22 +391,22 @@ end
 	@param position The given point. Does not have to be a point on the trajectory.
 	@return Returns the true anomaly angle in radians, or nil if there is no GravityBody being orbited.
 ]=]
-function OrbitalTrajectory:CalculateTrueAnomalyFromPoint(position: Modules.Vector3D): number
-	local mu: number = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
-	local r: Modules.Vector3D = self.Position -- Position vector
-	local rM: number = r:Magnitude() -- Position magnitude
-	local v: Modules.Vector3D = self.Velocity -- Velocity vector
+function OrbitalTrajectory:calculateTrueAnomalyFromPoint(position: Type.Vector3D): number
+	local mu: number = self.cache.mu
+	local r: Type.Vector3D = self.cache.r
+	local rM: number = self.cache.rM
+	local v: Type.Vector3D = self.cache.v
 
 	local greaterAnomaly: number
 	local lesserAnomaly: number
-	local greaterPoint: Modules.Vector3D
-	local lesserPoint: Modules.Vector3D
+	local greaterPoint: Type.Vector3D
+	local lesserPoint: Type.Vector3D
 
-	if self:IsClosed() then -- find the quadrant of the point and get the two points at the axes lines bordering that quadrant (search range: 0 -> 2 * math.pi)
-		local up: Modules.Vector3D = self:CalculatePointFromTrueAnomaly(math.pi).Position
-		local down: Modules.Vector3D = self:CalculatePointFromTrueAnomaly(0).Position
-		local left: Modules.Vector3D = self:CalculatePointFromTrueAnomaly(3 * math.pi / 2).Position
-		local right: Modules.Vector3D = self:CalculatePointFromTrueAnomaly(math.pi / 2).Position
+	if self.cache.isClosed then -- find the quadrant of the point and get the two points at the axes lines bordering that quadrant (search range: 0 -> 2 * math.pi)
+		local up: Type.Vector3D = self:calculatePointFromTrueAnomaly(math.pi):getPosition()
+		local down: Type.Vector3D = self:calculatePointFromTrueAnomaly(0):getPosition()
+		local left: Type.Vector3D = self:calculatePointFromTrueAnomaly(3 * math.pi / 2):getPosition()
+		local right: Type.Vector3D = self:calculatePointFromTrueAnomaly(math.pi / 2):getPosition()
 
 		if (up - position):Magnitude() < (down - position):Magnitude() then
 			if (left - position):Magnitude() < (right - position):Magnitude() then
@@ -398,15 +433,15 @@ function OrbitalTrajectory:CalculateTrueAnomalyFromPoint(position: Modules.Vecto
 		end
 	else -- get the two points defining the range of true anomaly of hyperbolic orbit (search range: -(x < math.pi) -> (x < math.pi))
 		greaterAnomaly = math.acos(-(mu * rM) / (mu * r + rM * r:Cross(v):Cross(v)):Magnitude()) - 2.24e-16
-		greaterPoint = self:CalculatePointFromTrueAnomaly(greaterAnomaly).Position
+		greaterPoint = self:calculatePointFromTrueAnomaly(greaterAnomaly):getPosition()
 		lesserAnomaly = -math.acos(-(mu * rM) / (mu * r + rM * r:Cross(v):Cross(v)):Magnitude()) + 2.24e-16
-		lesserPoint = self:CalculatePointFromTrueAnomaly(lesserAnomaly).Position
+		lesserPoint = self:calculatePointFromTrueAnomaly(lesserAnomaly):getPosition()
 	end
 
 	-- Bisection search for true anomaly, check distance by converting anomaly to point and compare with position
 	local lastMiddleAnomaly: number
 	local middleAnomaly: number = (greaterAnomaly + lesserAnomaly) / 2
-	local middlePoint: Modules.Vector3D = self:CalculatePointFromTrueAnomaly(middleAnomaly).Position
+	local middlePoint: Type.Vector3D = self:calculatePointFromTrueAnomaly(middleAnomaly):getPosition()
 	local anomalySearchIteration: number = 1
 
 	repeat
@@ -414,14 +449,14 @@ function OrbitalTrajectory:CalculateTrueAnomalyFromPoint(position: Modules.Vecto
 		local floatingPointError: boolean = (lastMiddleAnomaly == middleAnomaly) and (greaterAnomaly - lesserAnomaly ~= 0)
 
 		-- Vector math for comparing the target point and middlePoint
-		local transformedGreaterPoint: Modules.Vector3D = greaterPoint - lesserPoint -- transformedLesserPoint is (0, 0, 0)
-		local transformedTargetPoint: Modules.Vector3D = position - lesserPoint
-		local transformedMiddlePoint: Modules.Vector3D = middlePoint - lesserPoint
-		local referenceAxis: Modules.Vector3D = transformedGreaterPoint / transformedGreaterPoint:Magnitude() -- get the unit axis vector
+		local transformedGreaterPoint: Type.Vector3D = greaterPoint - lesserPoint -- transformedLesserPoint is (0, 0, 0)
+		local transformedTargetPoint: Type.Vector3D = position - lesserPoint
+		local transformedMiddlePoint: Type.Vector3D = middlePoint - lesserPoint
+		local referenceAxis: Type.Vector3D = transformedGreaterPoint / transformedGreaterPoint:Magnitude() -- get the unit axis vector
 
 		-- Project the two points onto the reference axis with dot product
-		local projectedTargetPoint: Modules.Vector3D = referenceAxis * transformedTargetPoint:Dot(referenceAxis)
-		local projectedMiddlePoint: Modules.Vector3D = referenceAxis * transformedMiddlePoint:Dot(referenceAxis)
+		local projectedTargetPoint: Type.Vector3D = referenceAxis * transformedTargetPoint:Dot(referenceAxis)
+		local projectedMiddlePoint: Type.Vector3D = referenceAxis * transformedMiddlePoint:Dot(referenceAxis)
 
 		-- Generate a 'number line' position along the reference axis for the two points
 		local targetPointPosition: number = projectedTargetPoint:Dot(referenceAxis)
@@ -429,10 +464,10 @@ function OrbitalTrajectory:CalculateTrueAnomalyFromPoint(position: Modules.Vecto
 
 		if targetPointPosition > middleAnomalyPosition then -- move lesser angle up
 			lesserAnomaly = if floatingPointError then greaterAnomaly else middleAnomaly
-			lesserPoint = self:CalculatePointFromTrueAnomaly(lesserAnomaly).Position
+			lesserPoint = self:calculatePointFromTrueAnomaly(lesserAnomaly):getPosition()
 		else --elseif targetPointPosition < middleAnomalyPosition then -- move greater angle down
 			greaterAnomaly = if floatingPointError then lesserAnomaly else middleAnomaly
-			greaterPoint = self:CalculatePointFromTrueAnomaly(greaterAnomaly).Position
+			greaterPoint = self:calculatePointFromTrueAnomaly(greaterAnomaly):getPosition()
 		end
 		-- else -- shortcut in case angle of target point is directly in the middle of lesser and greater angles -- doesnt work due to inaccurate floating point
 		-- 	return middleAnomaly
@@ -440,7 +475,7 @@ function OrbitalTrajectory:CalculateTrueAnomalyFromPoint(position: Modules.Vecto
 
 		lastMiddleAnomaly = middleAnomaly
 		middleAnomaly = (greaterAnomaly + lesserAnomaly) / 2
-		middlePoint = self:CalculatePointFromTrueAnomaly(middleAnomaly).Position
+		middlePoint = self:calculatePointFromTrueAnomaly(middleAnomaly):getPosition()
 
 		-- print(`iteration {anomalySearchIteration}, log10 ≈ {tostring(math.log10(math.abs(greaterAnomaly - lesserAnomaly))):sub(1, 4)}`)
 		-- print(greaterAnomaly)
@@ -475,14 +510,14 @@ end
 
 	@param trueAnomaly The angle of true anomaly. Can be any value.
 ]=]
-function OrbitalTrajectory:CalculateTimeFromPeriapsis(trueAnomaly: number): number
-	local mu: number = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
-	local r: Modules.Vector3D = self.Position -- Position vector
-	local rM: number = r:Magnitude() -- Position magnitude
-	local v: Modules.Vector3D = self.Velocity -- Velocity vector
-	local vM: number = v:Magnitude() -- Velocity magnitude
+function OrbitalTrajectory:calculateTimeFromPeriapsis(trueAnomaly: number): number
+	local mu: number = self.cache.mu
+	local r: Type.Vector3D = self.cache.r
+	local rM: number = self.cache.rM
+	local v: Type.Vector3D = self.cache.v
+	local vM: number = self.cache.vM
 
-	if self:IsClosed() then -- Orbit is circular / elliptic
+	if self.cache.isClosed then -- Orbit is circular / elliptic
 		return (-r:Cross(v):Magnitude() * (mu * r + rM * r:Cross(v):Cross(v)):Magnitude() * math.sin(trueAnomaly))
 				/ ((2 * mu * (rM ^ -1) - vM ^ 2) * ((mu * r + rM * r:Cross(v):Cross(v)):Magnitude() * math.cos(trueAnomaly) + mu * rM))
 			+ (mu * math.sqrt(math.abs(2 * mu * (rM ^ -1) - vM ^ 2)) ^ -3)
@@ -517,10 +552,10 @@ end
 	@param referenceTrueAnomaly The start angle of true anomaly. If not provided, defaults to the current true anomaly (between 0 and 2 * math.pi).
 	@return Returns a value, in seconds, representing the length of time to go from referenceTrueAnomaly to trueAnomaly. Can be negative if the current orbit is a hyperbola.
 ]=]
-function OrbitalTrajectory:CalculateTimeFromTrueAnomaly(trueAnomaly: number, referenceTrueAnomaly: number?): number
-	local adjustedReferenceTrueAnomaly: number = referenceTrueAnomaly or self:CalculateTrueAnomalyFromPoint(self.Position)
+function OrbitalTrajectory:calculateTimeFromTrueAnomaly(trueAnomaly: number, referenceTrueAnomaly: number?): number
+	local adjustedReferenceTrueAnomaly: number = referenceTrueAnomaly or self:calculateTrueAnomalyFromPoint(self:getStartPosition():getPosition())
 
-	return self:CalculateTimeFromPeriapsis(trueAnomaly) - self:CalculateTimeFromPeriapsis(adjustedReferenceTrueAnomaly)
+	return self:calculateTimeFromPeriapsis(trueAnomaly) - self:calculateTimeFromPeriapsis(adjustedReferenceTrueAnomaly)
 end
 
 --[=[
@@ -531,11 +566,14 @@ end
 	@param position The position to be reached (may have already been reached if the current orbit is hyperbolic).
 	@param referenceTrueAnomaly The refernce angle of true anomaly. If not provided, defaults to the current true anomaly (between 0 and 2 * math.pi).
 ]=]
-function OrbitalTrajectory:CalculateTimeFromPoint(position: Modules.Vector3D, referenceTrueAnomaly: number?): number
-	local trueAnomalyAngle: number = self:CalculateTrueAnomalyFromPoint(position)
-	assert(trueAnomalyAngle == trueAnomalyAngle, `trueAnomalyAngle is invalid ({trueAnomalyAngle})`)
+function OrbitalTrajectory:calculateTimeFromPoint(position: Type.Vector3D, referencePosition: Type.Vector3D?): number
+	local trueAnomalyAngle: number = self:calculateTrueAnomalyFromPoint(position)
 
-	return self:CalculateTimeFromTrueAnomaly(trueAnomalyAngle, referenceTrueAnomaly)
+	if referencePosition ~= nil then
+		return self:calculateTimeFromTrueAnomaly(trueAnomalyAngle, self:calculateTrueAnomalyFromPoint(referencePosition))
+	else
+		return self:calculateTimeFromTrueAnomaly(trueAnomalyAngle)
+	end
 end
 
 --[=[
@@ -545,18 +583,18 @@ end
 	@param magnitude
 	@return Returns the true anomaly angle in radians within 0 and math.pi, or nil if there is no GravityBody being orbited.
 ]=]
-function OrbitalTrajectory:CalculateTrueAnomalyFromMagnitude(magnitude: number): number
-	local mu: number = self.OrbitingBody:StandardGravitationalParameter() -- Standard gravitational parameter
-	local r: Modules.Vector3D = self.Position -- Position vector
-	local rM: number = r:Magnitude() -- Position magnitude
-	local v: Modules.Vector3D = self.Velocity -- Velocity vector
+function OrbitalTrajectory:calculateTrueAnomalyFromMagnitude(magnitude: number): number
+	local mu: number = self.cache.mu
+	local r: Type.Vector3D = self.cache.r
+	local rM: number = self.cache.rM
+	local v: Type.Vector3D = self.cache.v
 
 	local greaterAnomaly: number
 	local lesserAnomaly: number
 
 	lesserAnomaly = 0
 
-	if self:IsClosed() then -- search range: 0 -> math.pi
+	if self.cache.isClosed then -- search range: 0 -> math.pi
 		greaterAnomaly = math.pi
 	else -- search range: 0 -> (x < math.pi) (the range of true anomaly of hyperbolic orbit)
 		greaterAnomaly = math.acos(-(mu * rM) / (mu * r + rM * r:Cross(v):Cross(v)):Magnitude()) - 2.24e-16 -- subtract small number so greaterPoint will work, hopefully
@@ -565,7 +603,7 @@ function OrbitalTrajectory:CalculateTrueAnomalyFromMagnitude(magnitude: number):
 	-- Bisection search for true anomaly, check distance by converting anomaly to point and compare with magnitude
 	local lastMiddleAnomaly: number
 	local middleAnomaly: number = (greaterAnomaly + lesserAnomaly) / 2
-	local middleAnomalyMagnitude: number = self:CalculatePointFromTrueAnomaly(middleAnomaly).Position:Magnitude()
+	local middleAnomalyMagnitude: number = self:calculatePointFromTrueAnomaly(middleAnomaly):getPosition():Magnitude()
 	local anomalySearchIteration: number = 0
 	assert(middleAnomalyMagnitude ~= math.huge, `infinite value detected`)
 	repeat
@@ -580,7 +618,7 @@ function OrbitalTrajectory:CalculateTrueAnomalyFromMagnitude(magnitude: number):
 
 		lastMiddleAnomaly = middleAnomaly
 		middleAnomaly = (greaterAnomaly + lesserAnomaly) / 2
-		middleAnomalyMagnitude = self:CalculatePointFromTrueAnomaly(middleAnomaly).Position:Magnitude()
+		middleAnomalyMagnitude = self:calculatePointFromTrueAnomaly(middleAnomaly):getPosition():Magnitude()
 		-- ...should i be concerned about performance issues
 		
 		-- print(`iteration {anomalySearchIteration}, log10 ≈ {tostring(math.log10(math.abs(greaterAnomaly - lesserAnomaly))):sub(1, 4)}`)
@@ -611,11 +649,11 @@ end
 	Time can be either negative or positive if the trajectory is a hyperbola, or only positive if the orbit is closed.
 	https://www.desmos.com/3d/rfndgd4ppj
 ]=]
-function OrbitalTrajectory:CalculateTimeFromMagnitude(magnitude: number): number
-	local trueAnomalyAngle: number = self:CalculateTrueAnomalyFromMagnitude(magnitude)
+function OrbitalTrajectory:calculateTimeFromMagnitude(magnitude: number): number
+	local trueAnomalyAngle: number = self:calculateTrueAnomalyFromMagnitude(magnitude)
 	assert(trueAnomalyAngle == trueAnomalyAngle, `trueAnomalyAngle is nan`)
 
-	local resultTime: number = self:CalculateTimeFromTrueAnomaly(trueAnomalyAngle)
+	local resultTime: number = self:calculateTimeFromTrueAnomaly(trueAnomalyAngle)
 	assert(resultTime == resultTime, `resultTime is nan`)
 
 	return resultTime
@@ -625,13 +663,13 @@ end
 	Calculates a new MovingObject at a given altitude on this OrbitalTrajectory.
 	https://www.desmos.com/3d/rfndgd4ppj
 ]=]
-function OrbitalTrajectory:CalculatePointFromMagnitude(magnitude: number): Modules.MovingObject
-	local trueAnomalyAngle: number = self:CalculateTrueAnomalyFromMagnitude(magnitude)
+function OrbitalTrajectory:calculatePointFromMagnitude(magnitude: number): Type.KinematicState
+	local trueAnomalyAngle: number = self:calculateTrueAnomalyFromMagnitude(magnitude)
 	assert(trueAnomalyAngle == trueAnomalyAngle, `trueAnomalyAngle is nan`)
 
-	local resultPoint: Modules.MovingObject = self:CalculatePointFromTrueAnomaly(trueAnomalyAngle)
+	local resultPoint: Type.KinematicState = self:calculatePointFromTrueAnomaly(trueAnomalyAngle)
 
 	return resultPoint
 end
 
-return OrbitalTrajectory
+return OrbitalTrajectory :: Constructor.OrbitalTrajectory

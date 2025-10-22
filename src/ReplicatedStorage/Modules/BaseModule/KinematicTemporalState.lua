@@ -107,4 +107,9 @@ function KinematicTemporalState:consolidateTemporal(): KinematicTemporalState
 		)
 end
 
+function KinematicTemporalState:sameRelativeTree(other: KinematicTemporalState): boolean
+ 	return self:getKinematicState():sameRelativeTree(other:getKinematicState())
+		and self:getTemporalState():sameRelativeTree(other:getTemporalState())
+end
+
 return KinematicTemporalState :: Constructor.KinematicTemporalState

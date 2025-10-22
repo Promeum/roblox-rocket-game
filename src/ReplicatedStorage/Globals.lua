@@ -3,9 +3,11 @@
 local Type = require("./Modules/Type")
 
 local Globals = {
-	rootCelestials = {}
+	rootGravityCelestials = {},
+    rootPhysicsCelestials = {},
 }
 
 return Globals :: {
-    rootCelestials: { Type.Celestial }
+    rootGravityCelestials: { Type.GravityCelestial },
+    rootPhysicsCelestials: { Type.PhysicsCelestial }
 }

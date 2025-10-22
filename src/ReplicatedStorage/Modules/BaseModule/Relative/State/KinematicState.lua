@@ -59,6 +59,15 @@ end
 	Creates a new KinematicState instance.
 ]=]
 function KinematicState.new(position: Type.Vector3D, velocity: Type.Vector3D, relativeTo: KinematicState?): KinematicState
+	assert(
+		position.X == position.X and position.Y == position.Y and position.Z == position.Z,
+		"KinematicState new() position is nan (position = " .. tostring(position) .. ")"
+	)
+	assert(
+		velocity.X == velocity.X and velocity.Y == velocity.Y and velocity.Z == velocity.Z,
+		"KinematicState new() velocity is nan (velocity = " .. tostring(velocity) .. ")"
+	)
+	
 	local self = table.clone(KinematicState) :: any
 	self.position = position
 	self.velocity = velocity
@@ -69,6 +78,14 @@ function KinematicState.new(position: Type.Vector3D, velocity: Type.Vector3D, re
 	setmetatable(self, metatable)
 
 	return self
+end
+
+
+--[=[
+	Creates a new KinematicState instance.
+]=]
+function KinematicState.newFromKinematicState(kinematicState: KinematicState, relativeTo: KinematicState?): KinematicState
+	return KinematicState.new(kinematicState.position, kinematicState.velocity, relativeTo)
 end
 
 -- Methods

@@ -54,6 +54,7 @@ export type TemporalStateEXTENSIBLE<T> = {
 export type KinematicState = KinematicStateEXTENSIBLE<Type.KinematicState>
 export type KinematicStateEXTENSIBLE<T> = {
 	new: (position: Type.Vector3D, velocity: Type.Vector3D, relativeTo: T?) -> T,
+	newFromKinematicState: (kinematicState: T, relativeTo: T?) -> T,
 }
 
 --[=[
@@ -82,8 +83,8 @@ export type TrajectoryEXTENSIBLE<T> = {
 		kinematicState: Type.KinematicState,
 		temporalState: Type.TemporalState
 	) -> T,
-	newFromKinematicTemporalState: (
-		kinematicTemporalState: Type.KinematicTemporalState
+	fromPosition: (
+		position: Type.KinematicTemporalState
 	) -> T,
 }
 
@@ -97,8 +98,8 @@ export type LinearTrajectoryEXTENSIBLE<T> = {
 		kinematicState: Type.KinematicState,
 		temporalState: Type.TemporalState
 	) -> T,
-	newFromKinematicTemporalState: (
-		kinematicTemporalState: Type.KinematicTemporalState
+	fromPosition: (
+		position: Type.KinematicTemporalState
 	) -> T,
 }
 
@@ -110,17 +111,52 @@ export type OrbitalTrajectoryEXTENSIBLE<T> = {
 	new: (
 		kinematicState: Type.KinematicState,
 		temporalState: Type.TemporalState,
-		orbitingBody: Type.GravityCelestial?
+		orbitingBody: Type.GravityCelestial
 	) -> T,
-	newFromKinematicTemporalState: (
-		kinematicTemporalState: Type.KinematicTemporalState,
-		orbitingBody: Type.GravityCelestial?
+	fromPosition: (
+		position: Type.KinematicTemporalState,
+		orbitingBody: Type.GravityCelestial
 	) -> T,
 }
 
-export type Celestial = any
+export type CelestialEXTENSIBLE<T> = {
+	new: (
+		initialPosition: Type.KinematicTemporalState,
+		orbiting: T?
+	) -> T,
+	fromTrajectory: (
+		trajectory: Type.LinearTrajectory | Type.OrbitalTrajectory,
+		orbiting: T?
+	) -> T,
+}
 
-export type GravityCelestial = any
+export type GravityCelestial = GravityCelestialEXTENSIBLE<Type.GravityCelestial>
+export type GravityCelestialEXTENSIBLE<T> = {
+	new: (
+		mass: number,
+		SOIRadius: number,
+		initialPosition: Type.KinematicTemporalState,
+		orbiting: T?
+	) -> T,
+	fromTrajectory: (
+		mass: number,
+		SOIRadius: number,
+		trajectory: Type.LinearTrajectory | Type.OrbitalTrajectory,
+		orbiting: T?
+	) -> T,
+}
+
+export type PhysicsCelestial = PhysicsCelestialEXTENSIBLE<Type.PhysicsCelestial>
+export type PhysicsCelestialEXTENSIBLE<T> = {
+	new: (
+		initialPosition: Type.KinematicTemporalState,
+		orbiting: T?
+	) -> T,
+	fromTrajectory: (
+		trajectory: Type.LinearTrajectory | Type.OrbitalTrajectory,
+		orbiting: T?
+	) -> T,
+}
 
 -- Silence warnings
 return nil

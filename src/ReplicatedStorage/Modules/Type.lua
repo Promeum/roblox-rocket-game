@@ -9,7 +9,7 @@
 	- Type.Name - Public use
 	- Constructor.Name - Constructor (includes constructor and static stuff)
 	- Type.NameEXTENDABLE<[RuntimeType,] Subtype> - Subtype use (compatibility with subclasses)
-	- Name [internal] - Internal use (includes private stuff)
+	- Name [in Name.lua] - Internal use (includes private stuff)
 
 	Clean up the inheritance tree to reduce mess and tidy up spilled spaghetti code
 
@@ -22,15 +22,14 @@
 			✅ KinematicState (velocity and position, with means for inputting acceleration) [MovingObject]
 			✅ AccelerationState (acceleration + delta) [new]
 			⭕ OrientationState (maybe?) (very scary quaternion math aaaa) [new]
-		⭕ Celestial (Abstract) [a bit of SolarSystemObject; mostly new]
-			⭕ GravityCelestial [GravityBody]
-			⭕ PhysicsCelestial (Need to account for development roadmap [adding actual rocket objects to the game])
+		🔜 Celestial (Abstract) [a bit of SolarSystemObject; mostly new]
+			🔜 GravityCelestial [GravityBody]
+			🔜 PhysicsCelestial (Need to account for development roadmap [adding actual rocket objects to the game])
 	✅ KinematicTemporalState (KinematicState + TemporalState) (Not under Relative since this is a composite type) [SolarSystemObject]
 		* ...Define a class for all (or just a few) composite states!
 	✅ Trajectory (Abstract) (Not under Relative since this links forward) [TrajectoryObject, TrajectoryHolderObject]
-		🔜 LinearTrajectory
+		🕒 LinearTrajectory
 		🔜 OrbitalTrajectory
-		⭕ TrajectoryHolder (probably not) [TrajectoryHolderObject]
 	⭕ RigidBody (physics stuff) [new and exciting]
 		* Will have many different kinds of States, make them work together
 		* Will also have to transfer kinematics data to/from the Roblox game engine itself
@@ -197,6 +196,7 @@ export type TemporalStateEXTENSIBLE<T, S> = typeof(setmetatable(
 
 --[=[
 	Represents a position and velocity.
+	Immutable.
 ]=]
 export type KinematicState = KinematicStateEXTENSIBLE<KinematicState,
 	StateEXTENSIBLE<KinematicState,
@@ -227,6 +227,7 @@ type KinematicStateSetup<T, S, As> = typeof(setmetatable(
 --[=[
 	An acceleration, represented by a velocity
 	over a period of time (delta).
+	Immutable.
 ]=]
 export type AccelerationState = AccelerationStateEXTENSIBLE<AccelerationState,
 	StateEXTENSIBLE<AccelerationState,
@@ -255,6 +256,7 @@ export type AccelerationStateEXTENSIBLE<T, S> = typeof(setmetatable(
 
 --[=[
 	A composite state, made up of a KinematicState and TemporalState.
+	Immutable.
 ]=]
 export type KinematicTemporalState = KinematicTemporalStateEXTENSIBLE<KinematicTemporalState,
 	BaseModuleEXTENSIBLE<KinematicTemporalState
@@ -281,6 +283,7 @@ type KinematicTemporalStateSetup<T, S, As> = KinematicStateEXTENSIBLE<T, S>
 			getAbsoluteTemporalState: (self: T) -> TemporalState,
 			consolidateKinematic: (self: T) -> T,
 			consolidateTemporal: (self: T) -> T,
+			sameRelativeTree: (self: T, other: T) -> boolean,
 			getSuper: (self: T) -> S,
 			__type: "KinematicTemporalState"
 		},
@@ -292,7 +295,7 @@ type KinematicTemporalStateSetup<T, S, As> = KinematicStateEXTENSIBLE<T, S>
 
 --[=[
 	Provides functionality regarding SOIs to superclasses.
-	Abstract.
+	Immutable. Abstract.
 ]=]
 export type TrajectoryEXTENSIBLE<T, S> = typeof(setmetatable(
 	{} :: {
@@ -300,17 +303,12 @@ export type TrajectoryEXTENSIBLE<T, S> = typeof(setmetatable(
 		hasNextTrajectory: (self: T) -> boolean,
 		nextTrajectory: (self: T) -> T,
 		nextTrajectoryDirection: (self: T) -> "in" | "out",
-		minimumOrbitalIntersectionDistance: (
-			self: T,
-			other: T,
-			searchTimeMin: number,
-			searchTimeMax: number
-		) -> KinematicTemporalState,
+		MOID: (self: T, other: T) -> KinematicTemporalState,
 		calculatePointFromTime: (self: T, relativeTime: number) -> KinematicState,
 		calculatePositionFromTime: (self: T, relativeTime: number) -> KinematicTemporalState,
-		calculateTimeFromPoint: (self: T, position: Vector3D) -> TemporalState,
+		calculateTimeFromPoint: (self: T, position: Vector3D) -> number,
 		calculatePositionFromPoint: (self: T, position: Vector3D) -> KinematicTemporalState,
-		calculateTimeFromMagnitude: (self: T, magnitude: number) -> TemporalState,
+		calculateTimeFromMagnitude: (self: T, magnitude: number) -> number,
 		calculatePointFromMagnitude: (self: T, magnitude: number) -> KinematicState,
 		calculatePositionFromMagnitude: (self: T, magnitude: number) -> KinematicTemporalState,
 		atTime: (
@@ -337,13 +335,18 @@ export type TrajectoryEXTENSIBLE<T, S> = typeof(setmetatable(
 --[=[
 	Used to calculate a linear trajectory through space, unaffected by any gravity force.
 	Not-so-orbital mechanics!
+	Immutable.
 ]=]
 export type LinearTrajectory = LinearTrajectoryEXTENSIBLE<LinearTrajectory,
 	TrajectoryEXTENSIBLE<LinearTrajectory,
 		BaseModuleEXTENSIBLE<LinearTrajectory
 >>>
-export type LinearTrajectoryEXTENSIBLE<T, S> = typeof(setmetatable(
+export type LinearTrajectoryEXTENSIBLE<T, S> = LinearTrajectoryStateSetup<T, S, OrbitalTrajectory>
+-- Needs a setup type because of the declaration order of the types
+type LinearTrajectoryStateSetup<T, S, Ot> = typeof(setmetatable(
 	{} :: {
+		nextTrajectory: (self: T) -> Ot,
+		nextTrajectoryDirection: (self: T) -> "in",
 		getSuper: (self: T) -> S,
 		__type: "LinearTrajectory",
 	},
@@ -356,40 +359,37 @@ export type LinearTrajectoryEXTENSIBLE<T, S> = typeof(setmetatable(
 	Used to calculate a conic orbit around a GravityBody.
 	Orbital mechanics!
 	https://www.desmos.com/3d/rfndgd4ppj
+	Immutable.
 ]=]
 export type OrbitalTrajectory = OrbitalTrajectoryEXTENSIBLE<OrbitalTrajectory,
 	TrajectoryEXTENSIBLE<OrbitalTrajectory,
 		BaseModuleEXTENSIBLE<OrbitalTrajectory
 >>>
-export type OrbitalTrajectoryEXTENSIBLE<T, S> = typeof(setmetatable(
+export type OrbitalTrajectoryEXTENSIBLE<T, S> = OrbitalTrajectorySetup<T, S, GravityCelestial>
+type OrbitalTrajectorySetup<T, S, Gc> = typeof(setmetatable(
 	{} :: {
-		new: (position: Vector3D, velocity: Vector3D, orbitingBody: GravityBody) -> OrbitalTrajectory,
-		-- escapingSOI: (self: T) -> boolean,
-		fromMovingObject: (movingObject: MovingObject, orbitingBody: GravityBody) -> OrbitalTrajectory,
-		OrbitingBody: GravityBody,
-		OrbitalPeriod: (self: T) -> number,
-		TimeToPeriapsis: (self: T) -> number,
-		TimeSincePeriapsis: (self: T) -> number,
-		Apoapsis: (self: T) -> MovingObject,
-		Periapsis: (self: T) -> MovingObject,
-		SemiMajorAxis: (self: T) -> number,
-		SemiMinorAxis: (self: T) -> number,
-		Eccentricity: (self: T) -> number,
-		IsBound: (self: T) -> boolean,
-		IsClosed: (self: T) -> boolean,
-		SpecificOrbitalEnergy: number,
-		RecursiveTrueAnomalyHelper: (
+		orbiting: (self: T) -> Gc,
+		period: (self: T) -> number,
+		hasApoapsis: (self: T) -> boolean,
+		apoapsis: (self: T) -> KinematicState,
+		periapsis: (self: T) -> KinematicState,
+		semiMajorAxis: (self: T) -> number,
+		semiMinorAxis: (self: T) -> number,
+		eccentricity: (self: T) -> number,
+		isBound: (self: T) -> boolean,
+		isClosed: (self: T) -> boolean,
+		recursiveTrueAnomalyHelper: (
 			self: T,
 			recursions: number,
 			periapsisRelativeTime: number
 		) -> number,
-		CalculateTimeFromTrueAnomaly: (self: T, trueAnomaly: number, referenceTime: number?) -> number,
-		CalculatePointFromTrueAnomaly: (self: T, trueAnomaly: number) -> KinematicState,
-		CalculatePositionFromTrueAnomaly: (self: T, trueAnomaly: number, referenceTime: number?) -> KinematicTemporalState,
-		CalculateTrueAnomalyFromTime: (self: T, relativeTime: number) -> number,
-		CalculateTrueAnomalyFromPoint: (self: T, position: Vector3D) -> number,
-		CalculateTimeFromPeriapsis: (self: T, trueAnomaly: number) -> number,
-		CalculateTrueAnomalyFromMagnitude: (self: T, magnitude: number) -> number,
+		calculateTimeFromTrueAnomaly: (self: T, trueAnomaly: number, referenceTrueAnomaly: number?) -> number,
+		calculatePointFromTrueAnomaly: (self: T, trueAnomaly: number) -> KinematicState,
+		calculatePositionFromTrueAnomaly: (self: T, trueAnomaly: number, referenceTime: number?) -> KinematicTemporalState,
+		calculateTrueAnomalyFromTime: (self: T, relativeTime: number) -> number,
+		calculateTrueAnomalyFromPoint: (self: T, position: Vector3D) -> number,
+		calculateTimeFromPeriapsis: (self: T, trueAnomaly: number) -> number,
+		calculateTrueAnomalyFromMagnitude: (self: T, magnitude: number) -> number,
 		getSuper: (self: T) -> S,
 		__type: "OrbitalTrajectory",
 	},
@@ -398,9 +398,68 @@ export type OrbitalTrajectoryEXTENSIBLE<T, S> = typeof(setmetatable(
 	}
 ))
 
-export type Celestial = any
+export type CelestialEXTENSIBLE<T, S> = typeof(setmetatable(
+	{} :: {
+		trajectoryType: (self: T) -> "LinearTrajectory" | "OrbitalTrajectory",
+		getTrajectory: (self: T) -> LinearTrajectory | OrbitalTrajectory,
+		getPosition: (self: T, relativeTime: number?) -> KinematicTemporalState,
+		updatePosition: (self: T, delta: number) -> T,
+		orbiting: (self: T) -> boolean,
+		parentGravityCelestial: (self: T) -> T,
+		getSuper: (self: T) -> S,
+		__type: "Celestial",
+	},
+	{} :: {
+		__index: S,
+	}
+))
 
-export type GravityCelestial = any
+export type GravityCelestial = GravityCelestialEXTENSIBLE<GravityCelestial,
+	CelestialEXTENSIBLE<GravityCelestial,
+		RelativeEXTENSIBLE<GravityCelestial,
+			BaseModuleEXTENSIBLE<GravityCelestial
+>>>, PhysicsCelestial>
+export type GravityCelestialEXTENSIBLE<T, S, Pc> = typeof(setmetatable(
+	{} :: {
+		mass: (self: T) -> number,
+		mu: (self: T) -> number,
+		SOIRadius: (self: T) -> number,
+		childGravityCelestials: (self: T) -> { T },
+		childPhysicsCelestials: (self: T) -> { Pc },
+		StandardGravitationalParameter: (self: T) -> number,
+		orbitalVelocity: (self: T) -> number,
+		escapeVelocity: (self: T) -> number,
+		getSuper: (self: T) -> S,
+		__type: "GravityCelestial",
+	},
+	{} :: {
+		__index: S,
+	}
+))
+
+export type PhysicsCelestial = PhysicsCelestialEXTENSIBLE<PhysicsCelestial,
+	CelestialEXTENSIBLE<PhysicsCelestial,
+		RelativeEXTENSIBLE<PhysicsCelestial,
+			BaseModuleEXTENSIBLE<PhysicsCelestial
+>>>, GravityCelestial>
+export type PhysicsCelestialEXTENSIBLE<T, S, Gc> = typeof(setmetatable(
+	{} :: {
+		updatePositionAndChange: (
+			self: T,
+			time: number,
+			toChange: {
+				position: KinematicState?,
+				acceleration: AccelerationState?,
+				orbiting: Gc?,
+			}?
+		) -> KinematicTemporalState,
+		getSuper: (self: T) -> S,
+		__type: "PhysicsCelestial",
+	},
+	{} :: {
+		__index: S,
+	}
+))
 
 ---------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------
