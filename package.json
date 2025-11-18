@@ -1,0 +1,26 @@
+{
+  "name": "roblox-rocket-game",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build": "rbxtsc",
+    "watch": "rbxtsc -w"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@rbxts/compiler-types": "^3.0.0-types.0",
+    "@rbxts/types": "^1.0.886",
+    "@typescript-eslint/eslint-plugin": "^8.46.2",
+    "@typescript-eslint/parser": "^8.46.2",
+    "eslint": "^9.38.0",
+    "eslint-plugin-disable-autofix": "^5.0.1",
+    "eslint-plugin-jsdoc": "^61.1.8",
+    "eslint-plugin-roblox-ts": "^1.2.1",
+    "rbxts-transform-debug": "^2.2.0",
+    "roblox-ts": "^3.0.0",
+    "typescript": "^5.9.3"
+  }
+}
