@@ -5,7 +5,7 @@ import BaseModule from "..";
  * Base type for singly-linked list items.
  * Immutable. Abstract.
  */
-export default abstract class Relative extends BaseModule implements Iterable<Relative> {
+export default abstract class Relative extends BaseModule { // implements Iterable<Relative> {
 	private relativeTo: Relative | undefined;
 
 	/**
@@ -27,6 +27,7 @@ export default abstract class Relative extends BaseModule implements Iterable<Re
 	}
 	
 	public getRelative(): Relative {
+		if (this === this.relativeTo) error("Relative is relative to itself");
 		if (this.relativeTo)
 			return this.relativeTo;
 		else
@@ -37,14 +38,20 @@ export default abstract class Relative extends BaseModule implements Iterable<Re
 		return this.relativeTo;
 	}
 
+	/**
+	 * Creates an array of references to all of
+	 * the current object's relatives, starting from
+	 * the current object at index 0.
+	 * @returns An array of Relatives.
+	 */
 	public getRelativeTree(): Relative[] {
 		const resultTree: Relative[] = [];
 
 		// eslint-disable-next-line @typescript-eslint/no-this-alias
-		let relative: Relative = this;
-		while (relative.hasRelative()) {
+		let relative: Relative | undefined = this;
+		while (relative !== undefined) {
 			resultTree.push(relative);
-			relative = relative.getRelative();
+			relative = relative.getRelativeOrUndefined();
 		}
 
 		return resultTree;
@@ -61,6 +68,12 @@ export default abstract class Relative extends BaseModule implements Iterable<Re
 		}
 	}
 
+	/**
+	 * Finds the index at which this and other converge
+	 * within the relative tree of this.
+	 * @param other The Relative to compare with.
+	 * @returns A number.
+	 */
 	public convergenceIndex(other: Relative): number {
 		const thisRelativeTree: Relative[] = this.getRelativeTree();
 		const convergenceRelative: Relative | undefined = this.convergenceItem(other);
@@ -76,16 +89,13 @@ export default abstract class Relative extends BaseModule implements Iterable<Re
 	}
 
 	public convergenceItem(other: Relative): Relative | undefined {
-		// const otherIterator: Iterable<Relative> = other[Symbol.iterator]();
 		const thisRelativeTree: Relative[] = this.getRelativeTree();
-
 		// Check the tree of other against the tree of self
-
-		let otherRelative: Relative = other;
-		while (other.hasRelative()) {
-			if (thisRelativeTree.find(() => otherRelative.equals()))
+		let otherRelative: Relative | undefined = other;
+		while (otherRelative !== undefined) {
+			if (thisRelativeTree.find((relative: Relative) => otherRelative!.equals(relative)))
 				return otherRelative;
-			otherRelative = other.getRelative();
+			otherRelative = otherRelative.getRelativeOrUndefined();
 		}
 
 		return undefined;
@@ -93,16 +103,6 @@ export default abstract class Relative extends BaseModule implements Iterable<Re
 
 	public length(): number {
 		return this.getRelativeTree().size()
-	}
-
-	*[Symbol.iterator](): IterableIterator<Relative> {
-		// eslint-disable-next-line @typescript-eslint/no-this-alias
-		let currentRelative: Relative | undefined = this;
-
-		while (currentRelative !== undefined) {
-			yield currentRelative;
-			currentRelative = currentRelative.getRelativeOrUndefined();
-		}
 	}
 
 	public equals(other?: Relative): boolean {

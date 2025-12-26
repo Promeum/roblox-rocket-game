@@ -2,4 +2,7 @@
 /out
 /include
 *.tsbuildinfo
+*.rbxl
 THEPLAN.txt
+OrbitalTrajectory-11-16-2025.txt
+main.client.ts.txt

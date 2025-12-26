@@ -1,14 +1,14 @@
-import BaseModule from "../BaseModule";
-import KinematicState from "../BaseModule/Relative/State/KinematicState";
-import TemporalState from "../BaseModule/Relative/State/TemporalState";
-import AccelerationState from "../BaseModule/Relative/State/AccelerationState";
+import State from ".";
+import KinematicState from "./KinematicState";
+import TemporalState from "./TemporalState";
+import AccelerationState from "./AccelerationState";
 import Vector3D from "shared/Modules/Libraries/Vector3D";
 
 /**
  * KinematicTemporalState represents a composite state, made up of a KinematicState and TemporalState.
  * It encapsulates both a kinematic state (position/velocity) and a temporal state (time).
  */
-export default class KinematicTemporalState extends BaseModule {
+export default class KinematicTemporalState extends State {
 	public readonly kinematicState: KinematicState;
 	public readonly temporalState: TemporalState;
 
@@ -65,6 +65,43 @@ export default class KinematicTemporalState extends BaseModule {
 	 */
 	public getAbsoluteVelocity(): Vector3D {
 		return this.kinematicState.getAbsoluteVelocity();
+	}
+
+	override getAbsolute(): KinematicTemporalState {
+		return new KinematicTemporalState(
+			this.kinematicState.getAbsolute(),
+			this.temporalState.getAbsolute()
+		);
+	}
+
+	override consolidateOnce(): KinematicTemporalState {
+		return new KinematicTemporalState(
+			this.kinematicState.consolidateOnce(),
+			this.temporalState.consolidateOnce()
+		);
+	}
+
+	override synchronize(other: KinematicTemporalState): [KinematicTemporalState, KinematicTemporalState] {
+		const kinematicState: KinematicState[] = this.kinematicState.synchronize(other.kinematicState);
+		const temporalState: TemporalState[] = this.temporalState.synchronize(other.temporalState);
+
+		return [
+			new KinematicTemporalState(
+				kinematicState[0],
+				temporalState[0]
+			),
+			new KinematicTemporalState(
+				kinematicState[1],
+				temporalState[1]
+			)
+		];
+	}
+
+	override matchRelative(other: KinematicTemporalState): KinematicTemporalState {
+		return new KinematicTemporalState(
+			this.kinematicState.matchRelative(other.kinematicState),
+			this.temporalState.matchRelative(other.temporalState)
+		);
 	}
 
 	/**
@@ -132,5 +169,42 @@ export default class KinematicTemporalState extends BaseModule {
 
 		return this.kinematicState.equals(other.kinematicState) && 
 			   this.temporalState.equals(other.temporalState);
+	}
+
+	// Disabled supermethods
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	protected setRelative(relativeTo?: KinematicTemporalState): void {
+		error("KinematicTemporalState setRelative() Unsupported operation");
+	}
+
+	public hasRelative(): boolean {
+		error("KinematicTemporalState hasRelative() Unsupported operation");
+	}
+	
+	public getRelative(): KinematicTemporalState {
+		error("KinematicTemporalState getRelative() Unsupported operation");
+	}
+
+	public getRelativeOrUndefined(): KinematicTemporalState | undefined {
+		error("KinematicTemporalState getRelativeOrUndefined() Unsupported operation");
+	}
+
+	public getRelativeTree(): KinematicTemporalState[] {
+		error("KinematicTemporalState getRelativeTree() Unsupported operation");
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	public convergenceIndex(other: KinematicTemporalState): number {
+		error("KinematicTemporalState convergenceIndex() Unsupported operation");
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	public convergenceItem(other: KinematicTemporalState): KinematicTemporalState | undefined {
+		error("KinematicTemporalState convergenceItem() Unsupported operation");
+	}
+
+	public length(): number {
+		error("KinematicTemporalState length() Unsupported operation");
 	}
 }

@@ -1,145 +1,51 @@
 // import { $assert, $error } from "rbxts-transform-debug";
 import Vector3D from "shared/Modules/Libraries/Vector3D";
-import * as Constants from "shared/Constants";
+// import Thread from "shared/Modules/Libraries/Thread";
 import BaseModule from "..";
 import KinematicState from "../Relative/State/KinematicState";
 import TemporalState from "../Relative/State/TemporalState";
-import KinematicTemporalState from "../KinematicTemporalState";
+import KinematicTemporalState from "../Relative/State/KinematicTemporalState";
 import AccelerationState from "../Relative/State/AccelerationState";
-import GravityCelestial from "../Relative/Celestial/GravityCelestial";
+import CelestialState from "../CelestialState";
+import type Celestial from "../Relative/Celestial";
+import * as Constants from "shared/Constants";
 
 /**
  * Trajectory represents a trajectory in spacetime with kinematic and temporal components.
  */
 export default abstract class Trajectory extends BaseModule {
-	public readonly startPosition: KinematicTemporalState;
-	protected timeOfNextTrajectory: TemporalState | false | undefined;
-	protected nextTrajectoryCache: Trajectory | false | undefined;
-	protected nextTrajectoryDirectionCache: "in" | "out" | false | undefined;
-	protected nextSOICache: GravityCelestial | false | undefined;
+	public readonly celestial: Celestial
+	public readonly initialPosition: CelestialState;
 
 	// Constructors
 
 	/**
 	 * Creates a new Trajectory instance.
 	 */
-	protected constructor(kinematicState: KinematicState, temporalState: TemporalState)
+	protected constructor(initialPosition: CelestialState);
 
 	/**
-	 * Creates a new Trajectory instance from a KinematicTemporalState.
+	 * Creates a new Trajectory instance.
 	 */
-	protected constructor(kinematicTemporalState: KinematicTemporalState)
+	protected constructor(initialPosition: KinematicTemporalState, celestial: Celestial);
 
-	protected constructor(arg1: KinematicState | KinematicTemporalState, arg2?: TemporalState) {
-		let startPosition: KinematicTemporalState;
-
-		if (arg1 instanceof KinematicState) { // Constructor 1
-			assert(arg2 instanceof TemporalState)
-			startPosition = new KinematicTemporalState(arg1, arg2);
-		} else { // Constructor 2
-			startPosition = arg1;
-		}
-
+	protected constructor(arg1: KinematicTemporalState | CelestialState, arg2?: Celestial) {
 		super();
-		this.startPosition = startPosition;
+
+		if (arg1 instanceof CelestialState) {
+			this.celestial = arg1.celestial;
+			this.initialPosition = arg1;
+		} else {
+			assert(arg2);
+			this.celestial = arg2;
+			this.initialPosition = new CelestialState(
+				arg1,
+				arg2
+			);
+		}
 	}
 
 	// Methods
-
-	/**
-	 * Returns whether this Trajectory leads into a new Trajectory (in a new SOI).
-	 * Caches results.
-	 * @returns true if there is a next Trajectory
-	 */
-	public abstract hasNextTrajectory(): boolean
-
-	/**
-	 * Returns the next Trajectory.
-	 * Otherwise, if there is no trajectory, throws an error.
-	 * @returns The next Trajectory
-	 */
-	public nextTrajectory(): Trajectory {
-		if (this.nextTrajectoryCache === false)
-			error("Trajectory nextTrajectory() cannot be called on a Trajectory with no nextTrajectory");
-
-		if (this.nextTrajectoryCache === undefined) {
-			this.hasNextTrajectory();
-			return this.nextTrajectory();
-		} else {
-			return this.nextTrajectoryCache;
-		}
-	}
-
-	/**
-	 * Returns the time to the next Trajectory.
-	 * Otherwise, if there is no next trajectory, throws an error.
-	 * @returns A TemporalState relative to the start position
-	 */
-	public timeToNextTrajectory(relativeTime: number = 0): number {
-		if (this.timeOfNextTrajectory === false)
-			error("Trajectory timeToNextTrajectory() cannot be called on a Trajectory with no nextTrajectory");
-
-		if (this.timeOfNextTrajectory === undefined) {
-			this.hasNextTrajectory();
-			return this.timeToNextTrajectory(relativeTime);
-		} else {
-			return this.timeOfNextTrajectory.relativeTime - relativeTime;
-		}
-	}
-
-	/**
-	 * Returns if this Trajectory goes into, or out of, an SOI.
-	 * Otherwise, if there is no next trajectory, throws an error.
-	 * @returns The next Trajectory
-	 */
-	public nextTrajectoryDirection(): "in" | "out" {
-		if (this.nextTrajectoryDirectionCache === false)
-			error("Trajectory nextTrajectoryDirection() cannot be called on a Trajectory with no nextTrajectory");
-
-		if (this.nextTrajectoryDirectionCache === undefined) {
-			this.hasNextTrajectory();
-			return this.nextTrajectoryDirection();
-		} else {
-			return this.nextTrajectoryDirectionCache;
-		}
-	}
-
-	/**
-	 * Returns whether this Trajectory leads into a new SOI
-	 * around a GravityCelestial.
-	 * Caches results.
-	 * @returns true if there is a next SOI
-	 */
-	public entersNewSOI(): boolean {
-		if (this.nextTrajectoryCache === false)
-			error("Trajectory entersNewSOI() cannot be called on a Trajectory with no nextTrajectory");
-
-		if (this.nextSOICache === undefined) {
-			this.hasNextTrajectory();
-			return this.entersNewSOI();
-		} else {
-			return this.nextSOICache !== false;
-		}
-	}
-
-	/**
-	 * Returns the next GravityCelestial whose SOI this Celestial is entering.
-	 * Otherwise, if there is no next trajectory, throws an error.
-	 * @returns The next GravityCelestial
-	 */
-	public nextSOI(): GravityCelestial {
-		if (this.nextTrajectoryCache === false)
-			error("Trajectory nextSOI() cannot be called on a Trajectory with no nextTrajectory");
-		if (this.nextSOICache === false)
-			error("Trajectory nextSOI() cannot be called on a Trajectory not entering a new SOI");
-
-		if (this.nextSOICache === undefined) {
-			this.hasNextTrajectory();
-			return this.nextSOI();
-		} else {
-			return this.nextSOICache;
-		}
-	}
 
 	/**
 	 * Computes the location of closest approach of this and another Trajectory in spacetime.
@@ -147,7 +53,7 @@ export default abstract class Trajectory extends BaseModule {
 	 * @param searchTimeMin The minimum time to search.
 	 * @param searchTimeMax The maximum time to search.
 	 */
-	public abstract MOID(other: Trajectory): KinematicTemporalState
+	public abstract MOID(other: Trajectory): CelestialState
 
 	/**
 	 * Calculates the point at which this Trajectory will reach relativeTime seconds from now.
@@ -158,16 +64,30 @@ export default abstract class Trajectory extends BaseModule {
 	public abstract calculatePointFromTime(relativeTime: number): KinematicState
 
 	/**
-	 * Calculates the position at which this LinearTrajectory will reach relativeTime seconds from now.
+	 * Calculates the position at which this Trajectory will reach relativeTime seconds from now.
 	 * Note: relativeTime can be negative.
 	 * @param relativeTime The time passed since the location of this Trajectory.
-	 * @returns The kinematic temporal state at that time
+	 * @returns The CelestialState at that time. The internal Kinematic and Temporal states
+	 * are each relative to the initialPosition of this trajectory.
 	 */
-	public calculatePositionFromTime(relativeTime: number): KinematicTemporalState {
-		return new KinematicTemporalState(
-			this.calculatePointFromTime(relativeTime),
-			new TemporalState(relativeTime, this.startPosition.temporalState)
+	public calculatePositionFromTime(relativeTime: number): CelestialState {
+		return new CelestialState(
+			new KinematicTemporalState(
+				this.calculatePointFromTime(relativeTime),
+				new TemporalState(relativeTime, this.initialPosition.kinematicPosition.temporalState)
+			),
+			this.celestial
 		);
+	}
+
+	/**
+	 * Calculates the absolute position (with calculated relative positions) at relativeTime.
+	 * @param relativeTime The time passed since the location of this Trajectory.
+	 * @returns The CelestialState at that time. The internal Kinematic and Temporal states
+	 * are each relative to the initialPosition of this trajectory.
+	 */
+	public calculateAbsolutePositionFromTime(relativeTime: number): CelestialState {
+		return this.calculatePositionFromTime(relativeTime);
 	}
 
 	/**
@@ -188,12 +108,15 @@ export default abstract class Trajectory extends BaseModule {
 	 * @param position The position to be reached
 	 * @returns The kinematic temporal state at closest approach
 	 */
-	public calculatePositionFromPoint(position: Vector3D): KinematicTemporalState {
+	public calculatePositionFromPoint(position: Vector3D): CelestialState {
 		const timeFromPoint: number = this.calculateTimeFromPoint(position);
 
-		return new KinematicTemporalState(
-			this.calculatePointFromTime(timeFromPoint),
-			this.startPosition.temporalState.withRelativeTime(timeFromPoint)
+		return new CelestialState(
+			new KinematicTemporalState(
+				this.calculatePointFromTime(timeFromPoint),
+				this.initialPosition.kinematicPosition.temporalState.withRelativeTime(timeFromPoint)
+			),
+			this.celestial
 		);
 	}
 
@@ -223,7 +146,7 @@ export default abstract class Trajectory extends BaseModule {
 	 * @param magnitude The altitude/magnitude to reach
 	 * @returns The kinematic temporal state at that magnitude
 	 */
-	public calculatePositionFromMagnitude(magnitude: number): KinematicTemporalState {
+	public calculatePositionFromMagnitude(magnitude: number): CelestialState {
 		return this.calculatePositionFromTime(this.calculateTimeFromMagnitude(magnitude));
 	}
 
@@ -241,40 +164,36 @@ export default abstract class Trajectory extends BaseModule {
 		let newTrajectory: Trajectory = this;
 
 		for (let recursion = 1; recursion <= recursions; recursion++)
-			newTrajectory = newTrajectory.step(delta * recursion, withAcceleration);
+			newTrajectory = newTrajectory.atTime(delta * recursion, withAcceleration);
 
 		return newTrajectory;
 	}
 
 	/**
 	 * Clones and increments this Trajectory in time, then returns the result.
-	 * Note: Checks for SOI changes.
+	 * Note: Does NOT check for SOI changes.
 	 * @param delta The change in time. Is most accurate with small values.
 	 * @param withAcceleration Adds an acceleration to this Trajectory, modifying the trajectory
 	 * @returns The incremented trajectory
 	 */
-	public abstract step(delta: number, withAcceleration?: AccelerationState): Trajectory
-
-	/**
-	 * Clones and increments this Trajectory in time, then returns the result.
-	 * Note: Does NOT check for SOI changes.
-	 * @param delta The change in time
-	 * @param withAcceleration Adds an acceleration to this Trajectory, modifying the trajectory
-	 * @returns The incremented trajectory
-	 */
-	protected abstract atTime(delta: number, withAcceleration?: AccelerationState): Trajectory
+	public abstract atTime(delta: number, withAcceleration?: AccelerationState): Trajectory
 
 	/**
 	 * Calculates a trajectory as a series of points.
 	 * @param delta The change in time
 	 * @param recursions The number of points to calculate
-	 * @returns Array of kinematic temporal states representing the trajectory points
+	 * @returns Array of CelestialStates representing the trajectory points
 	 */
-	public calculatePoints(delta: number, recursions: number): KinematicTemporalState[] {
-		const points: KinematicTemporalState[] = [];
+	public calculatePoints(delta: number, recursions: number): CelestialState[] {
+		const points: CelestialState[] = [];
 
-		for (let i = 1; i <= recursions; i++)
-			points.push(this.calculatePositionFromTime(delta * i));
+		// const threads: Thread[] = [];
+		for (let i = 1; i <= recursions; i++) {
+			// const newThread: Thread = Thread.create(() => this.calculatePositionFromTime(delta * i), player);
+			// newThread.start().Event.Once((result) => points[i] = result);
+			const arg = this.calculatePositionFromTime(delta * i);
+			points.push(arg);
+		}
 
 		return points;
 	}
@@ -289,18 +208,23 @@ export default abstract class Trajectory extends BaseModule {
 	public displayTrajectory(delta: number, recursions: number, width: number): Folder {
 		if (delta <= 0 || recursions < 1 || width < 0)
 			error("Trajectory displayTrajectory() Invalid parameter(s)");
-
-		const trajectory: KinematicTemporalState[] = this.calculatePoints(delta, recursions);
+// debug.profilebegin("calculateDisplayPoints");
+// const calcPointsS = os.clock();
+		const trajectory: CelestialState[] = this.calculatePoints(delta, recursions);
+// const calcPointsE = os.clock();
+// debug.profileend();
+// print("BENCHMARK RESULTS calcPoints: " + (calcPointsE - calcPointsS))
 
 		// make all of the attachments
 		const attachments: Attachment[] = [];
 
+		const nameLength = `${trajectory.size() - 1}`.size();
 		for (let i = 0; i < trajectory.size(); i++) {
-			const newPoint: KinematicTemporalState = trajectory[i];
+			const newPoint: KinematicTemporalState = trajectory[i].kinematicPosition;
 			const newAttachment: Attachment = new Instance("Attachment");
 
-			newAttachment.Name = `${i + 1}`;
-			newAttachment.Position = newPoint.getAbsolutePosition().mul(Constants.SOLAR_SYSTEM_SCALE).toVector3();
+			newAttachment.Name = `%${nameLength}d`.format(i + 1);
+			newAttachment.Position = newPoint.getPosition().mul(Constants.SOLAR_SYSTEM_SCALE).toVector3();
 
 			attachments.push(newAttachment);
 		}
@@ -317,6 +241,7 @@ export default abstract class Trajectory extends BaseModule {
 
 			newBeam.Attachment0 = attachment0;
 			newBeam.Attachment1 = attachment1;
+			newBeam.Segments = 1;
 			newBeam.Width0 = width;
 			newBeam.Width1 = width;
 			newBeam.FaceCamera = true;
@@ -326,7 +251,6 @@ export default abstract class Trajectory extends BaseModule {
 
 			beams.push(newBeam);
 		}
-
 		// add everything to workspace in a nice file hierarchy
 
 		// attachments
@@ -334,6 +258,7 @@ export default abstract class Trajectory extends BaseModule {
 		trajectoryFolder.Name = "TrajectoryLine";
 
 		const attachmentFolder: Part = new Instance("Part");
+		attachmentFolder.Anchored = true;
 		attachmentFolder.CanCollide = false;
 		attachmentFolder.Transparency = 1;
 		attachmentFolder.Size = new Vector3(0, 0, 0);
@@ -347,10 +272,18 @@ export default abstract class Trajectory extends BaseModule {
 
 		attachmentFolder.Parent = trajectoryFolder;
 
+// debug trajectory start point
+this._testpart(
+	"STARTPART",
+	new BrickColor("Bright red").Color,
+	0.3,
+	trajectory[0].kinematicPosition.getAbsolutePosition(),
+	trajectoryFolder
+)
+
 		// beams
 		const beamFolder: Folder = new Instance("Folder");
 		beamFolder.Name = "Beams";
-
 
 		for (let i = 0; i < beams.size(); i++) {
 			const beam = beams[i];
@@ -358,16 +291,6 @@ export default abstract class Trajectory extends BaseModule {
 		}
 
 		beamFolder.Parent = trajectoryFolder;
-
-		// Weld attachmentFolder to a GravityCelestial so the displayed line will move along with it
-		// if (this.OrbitingBody) {
-		// 	const weld: WeldConstraint = new Instance("WeldConstraint");
-		// 	weld.Part0 = attachmentFolder;
-		// 	weld.Part1 = this.OrbitingBody.RootPart;
-		// 	weld.Parent = attachmentFolder;
-		// }
-		// trajectoryFolder.Parent = workspace.Orbits
-
 		return trajectoryFolder;
 	}
 }

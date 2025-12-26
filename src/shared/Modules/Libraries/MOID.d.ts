@@ -8,7 +8,7 @@
  * @param saxisB Semi-major axis of B
  * @param eccenB Eccentricity of B
  * @param argpeB Argument of periapsis of B
- * @param omegaB Longitude of the asc3nding node of B
+ * @param omegaB Longitude of the ascending node of B
  * @param incliB Inclination of B
  */
 declare function MOID(

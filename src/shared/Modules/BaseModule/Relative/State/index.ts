@@ -12,7 +12,6 @@ export default abstract class State extends Relative {
     /**
      * Returns a new State relative to nil, representing
      * the State relative to the base world state.
-     * Implemented in superclasses.
      * 
      * <code>self: &nbsp;&nbsp;a-b-c-d-self</code><br>
      * <code>result: result</code>
@@ -23,7 +22,6 @@ export default abstract class State extends Relative {
 
     /**
      * Returns a new State relative to the current relativeTo's relativeTo.
-     * Implemented in superclasses.
      * 
      * <code>self: &nbsp;&nbsp;a-b-c-d-self</code><br>
      * <code>result: a-b-c-result</code>
@@ -34,7 +32,6 @@ export default abstract class State extends Relative {
 
     /**
      * 	Synchronizes this State with another such that they have the same RelativeTo.
-     * 	Implemented in superclasses.
      * 
      * 	<code>self: &nbsp;&nbsp;a-b-c-d-self</code><br>
      * 	<code>other: &nbsp;a-b-e-other</code><br>
@@ -47,14 +44,13 @@ export default abstract class State extends Relative {
 
     /**
      * Matches the RelativeTo tree of other with this State.
-     * Implemented in superclasses.
      * 
      * <code>self: &nbsp;&nbsp;a-b-c-d-self</code><br>
      * <code>other: &nbsp;a-b-e-other</code><br>
      * <code>result: a-b-c-d-otherResult</code>
      * 
      * @param {State} other The other State to match with.
-     * @returns {State} The synchronized other State. Note: Resultant relativeTime may be negative.
+     * @returns {State} The synchronized other State.
      */
     public abstract matchRelative(other: State): State
 

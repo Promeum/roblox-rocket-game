@@ -162,12 +162,12 @@ export default class TemporalState extends State {
 		const convergenceIndex = other.convergenceIndex(this);
 
 		// consolidate other to match with self's RelativeTo tree, and track trimmed relativeTime
-		let otherIterator = other;
+		let otherIterator: TemporalState = other;
 		let trimmedTime = 0;
 
-		for (let i = 0; i < convergenceIndex - 1; i++) {
+		for (let i = 0; i < convergenceIndex; i++) {
 			trimmedTime += otherIterator.relativeTime;
-			otherIterator = otherIterator.getRelative();
+			otherIterator = otherIterator.getRelativeOrUndefined() as TemporalState;
 		}
 
 		// subtract the time exclusively between other and self, and add the excess to the newly matched result
@@ -183,7 +183,7 @@ export default class TemporalState extends State {
 		assert(
 			this.getRelativeOrUndefined() === result.getRelativeOrUndefined() &&
 				other.getAbsoluteTime() === result.getAbsoluteTime(),
-			"something wrong in the calcs!",
+			"Logic Error in matchRelative",
 		);
 
 		return result;
