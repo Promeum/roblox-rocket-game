@@ -2,10 +2,10 @@
 import BaseModule from "..";
 
 /**
- * Base type for singly-linked list items.
+ * Base type for linked-back items.
  * Immutable. Abstract.
  */
-export default abstract class Relative extends BaseModule { // implements Iterable<Relative> {
+export default abstract class Relative extends BaseModule {
 	private relativeTo: Relative | undefined;
 
 	/**
@@ -19,6 +19,7 @@ export default abstract class Relative extends BaseModule { // implements Iterab
 	// Methods
 
 	protected setRelative(relativeTo?: Relative): void {
+		if (this === relativeTo) error("Relative must not be relative to itself");
 		this.relativeTo = relativeTo;
 	}
 
@@ -35,6 +36,7 @@ export default abstract class Relative extends BaseModule { // implements Iterab
 	}
 
 	public getRelativeOrUndefined(): Relative | undefined {
+		if (this === this.relativeTo) error("Relative is relative to itself");
 		return this.relativeTo;
 	}
 
@@ -105,12 +107,9 @@ export default abstract class Relative extends BaseModule { // implements Iterab
 		return this.getRelativeTree().size()
 	}
 
-	public equals(other?: Relative): boolean {
-		return this.relativeTo === other?.relativeTo;
+	public equals(other?: Relative): other is Relative {
+		return super.equals(other) && this.sameRelativeTree(other);
 	}
 
-	public deepClone(): Relative {
-		return super.deepClone() as Relative;
-	}
-	
+	public abstract deepClone(): Relative
 }

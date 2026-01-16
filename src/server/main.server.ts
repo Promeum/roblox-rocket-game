@@ -16,7 +16,7 @@
 //     const part: Part = new Instance("Part");
 // 	part.Name = name;
 // 	part.Shape = Enum.PartType.Ball;
-// 	part.Size = Vector3.one.mul(radius * Constants.SOLAR_SYSTEM_SCALE);
+// 	part.Size = Vector3.one.mul(radius * Globals.solarSystemScale);
 // 	part.Anchored = true;
 // 	part.Material = Enum.Material.Neon;
 // 	part.BrickColor = color;
@@ -41,7 +41,7 @@
 // 	SOI.Material = Enum.Material.ForceField;
 
 // 	SOI.Name = parentPart.Name + "SOI";
-// 	SOI.Size = Vector3D.one.mul(parentGravityBody.SOIRadius * 2 * Constants.SOLAR_SYSTEM_SCALE).toVector3();
+// 	SOI.Size = Vector3D.one.mul(parentGravityBody.SOIRadius * 2 * Globals.solarSystemScale).toVector3();
 // 	SOI.Position = parentPart.Position;
 // 	SOI.Parent = parentPart;
 
@@ -113,9 +113,9 @@
 // 	print("Moon pos: " + Moon.state.kinematicPosition.kinematicState.getAbsolutePosition());
 // 	// print("Moon: ", Moon.state);
 // 	Earth.updateState(time);
-// 	EarthPart.Position = Earth.state.kinematicPosition.kinematicState.getAbsolutePosition().toVector3().mul(Constants.SOLAR_SYSTEM_SCALE);
+// 	EarthPart.Position = Earth.state.kinematicPosition.kinematicState.getAbsolutePosition().toVector3().mul(Globals.solarSystemScale);
 // 	Moon.updateState(time);
-// 	MoonPart.Position = Moon.state.kinematicPosition.kinematicState.getAbsolutePosition().toVector3().mul(Constants.SOLAR_SYSTEM_SCALE);
+// 	MoonPart.Position = Moon.state.kinematicPosition.kinematicState.getAbsolutePosition().toVector3().mul(Globals.solarSystemScale);
 
 // 	time = time.withIncrementTime(deltaTime ^ 50);
 // 	// if (time.relativeTime > .6) error("fin")

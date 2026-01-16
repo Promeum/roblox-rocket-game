@@ -131,11 +131,18 @@ export default class Vector3D {
 	}
 
 	cross(other: Vector3D): Vector3D {
-		return new Vector3D(
-			this.Y * other.Z - this.Z * other.Y,
-			this.Z * other.X - this.X * other.Z,
-			this.X * other.Y - this.Y * other.X,
+		// return new Vector3D( // math notation of X forward, Y right, and Z up
+		// 	this.Y * other.Z - this.Z * other.Y,
+		// 	this.Z * other.X - this.X * other.Z,
+		// 	this.X * other.Y - this.Y * other.X,
+		// );
+		return new Vector3D( // game notation of Z forward, X right, and Y up (the subtraction order is reversed)
+			this.Z * other.Y - this.Y * other.Z,
+			this.X * other.Z - this.Z * other.X,
+			this.Y * other.X - this.X * other.Y,
 		);
+		// In practice: use Vector3D with Y and Z swapped before cross product!
+		// cross product result: math = (x, y, z) -> game = (-x, -y, -z)
 	}
 
 	angle(other: Vector3D, axis?: Vector3D): number {

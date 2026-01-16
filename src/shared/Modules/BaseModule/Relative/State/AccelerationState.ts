@@ -1,6 +1,7 @@
 // import { $assert } from "rbxts-transform-debug";
-import State from ".";
 import Vector3D from "shared/Modules/Libraries/Vector3D";
+
+import State from ".";
 
 export default class AccelerationState extends State {
 	public readonly acceleration: Vector3D;
@@ -86,18 +87,10 @@ export default class AccelerationState extends State {
 
     // Comparisons
 
-	public equals(other?: AccelerationState): boolean {
-		if (this !== undefined && other !== undefined) {
-			if (this.acceleration.equals(other.acceleration) && this.delta === other.delta)
-				if (this.hasRelative() && other.hasRelative())
-					return this.getRelative().equals(other.getRelative());
-				else
-					return this.hasRelative() === other.hasRelative();
-			else
-				return false;
-        } else {
-			return this === undefined && other === undefined;
-        }
+	override equals(other?: AccelerationState): other is AccelerationState {
+		return super.equals(other)
+			&& this.acceleration.equals(other.acceleration)
+			&& this.delta === other.delta;
 	}
 
 	public lessThan(other: AccelerationState): boolean {
@@ -114,7 +107,7 @@ export default class AccelerationState extends State {
 	 * Changes the delta and change in velocity
 	 * while maintaining the overall acceleration force.
 	 * @param delta 
-	 * @returns A new AcceleratnState.
+	 * @returns A new AccelerationState.
 	 */
 	public getAccelerationVector(delta?: number): Vector3D {
 		if (delta === undefined) {
@@ -132,11 +125,11 @@ export default class AccelerationState extends State {
 		}
 	}
 
-    public getAbsolute(): AccelerationState {
+    override getAbsolute(): AccelerationState {
         return new AccelerationState(this.getAbsoluteAcceleration(1));
     }
 
-	public consolidateOnce(delta?: number): AccelerationState {
+	override consolidateOnce(delta?: number): AccelerationState {
 		assert(this.hasRelative(), "consolidateOnce() cannot be called on a AccelerationState with no RelativeTo");
 		const relativeTo = this.getRelative();
 
@@ -147,7 +140,7 @@ export default class AccelerationState extends State {
 		);
 	}
 
-	public synchronize(other: AccelerationState): [AccelerationState, AccelerationState] {
+	override synchronize(other: AccelerationState): [AccelerationState, AccelerationState] {
 		const convergenceItem = this.convergenceItem(other) ?? new AccelerationState(new Vector3D(0, 0, 0));
 
 		const selfTree = this.getRelativeTree();
@@ -187,7 +180,7 @@ export default class AccelerationState extends State {
 		return [selfResult, otherResult];
 	}
 
-	public matchRelative(other: AccelerationState): AccelerationState {
+	override matchRelative(other: AccelerationState): AccelerationState {
 		const convergenceIndex = other.convergenceIndex(this);
 
 		let otherIterator = other;
@@ -220,24 +213,27 @@ export default class AccelerationState extends State {
 
 	// Wrap super methods with current type
 
-    public convergenceIndex(other: AccelerationState): number {
+    override convergenceIndex(other: AccelerationState): number {
         return super.convergenceIndex(other);
     }
 
-	public getRelative(): AccelerationState {
+	override getRelative(): AccelerationState {
         return super.getRelative() as AccelerationState;
     }
 
-	public getRelativeOrUndefined() : AccelerationState | undefined {
+	override getRelativeOrUndefined() : AccelerationState | undefined {
         return super.getRelativeOrUndefined() as AccelerationState | undefined;
     }
 
-    public getRelativeTree(): AccelerationState[] {
-        return super.getRelativeTree() as AccelerationState[];
+    override getRelativeTree(): AccelerationState[] {
+        return super.getRelativeTree() as unknown as AccelerationState[];
     }
 
-	public convergenceItem(other: AccelerationState): AccelerationState | undefined {
+	override convergenceItem(other: AccelerationState): AccelerationState | undefined {
         return super.convergenceItem(other) as AccelerationState | undefined;
     }
 
+	override deepClone(): AccelerationState {
+		return this;
+	}
 }

@@ -148,7 +148,7 @@
 // function void makeRootPartFor(GBody: GravityCelestial, name: string, radius: number, color: BrickColor) {
 // 	GBody.RootPart.Name = name
 // 	GBody.RootPart.Shape = Enum.PartType.Ball
-// 	GBody.RootPart.Size = Vector3.one * (radius * Constants.SOLAR_SYSTEM_SCALE)
+// 	GBody.RootPart.Size = Vector3.one * (radius * Globals.solarSystemScale)
 // 	GBody.RootPart.Anchored = true
 // 	GBody.RootPart.Material = Enum.Material.Neon
 // 	GBody.RootPart.BrickColor = color
@@ -164,7 +164,7 @@
 // makeRootPartFor(Moon, "Moon", 1737.53e3, BrickColor.new("Dark stone grey"));
 
 // Satellite.RootPart.Name = "Satellite"
-// Satellite.RootPart.Size = Vector3.new(1, 4, 1.5) * (5e6 * Constants.SOLAR_SYSTEM_SCALE)
+// Satellite.RootPart.Size = Vector3.new(1, 4, 1.5) * (5e6 * Globals.solarSystemScale)
 // Satellite.RootPart.Anchored = true
 // Satellite.RootPart.Material = Enum.Material.Neon
 // Satellite.RootPart.BrickColor = BrickColor.new("Bright yellow")
@@ -181,7 +181,7 @@
 // 	SOI.Material = Enum.Material.ForceField
 
 // 	SOI.Name = GBody.RootPart.Name .. "SOI"
-// 	SOI.Size = (Vector3D.one * GBody.SOIRadius * 2 * Constants.SOLAR_SYSTEM_SCALE):ToVector3()
+// 	SOI.Size = (Vector3D.one * GBody.SOIRadius * 2 * Globals.solarSystemScale):ToVector3()
 // 	SOI.Position = GBody.RootPart.Position
 // 	SOI.Parent = GBody.RootPart
 

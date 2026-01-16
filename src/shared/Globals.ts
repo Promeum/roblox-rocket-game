@@ -1,6 +1,4 @@
-import type GravityCelestial from "./Modules/BaseModule/Relative/Celestial/GravityCelestial";
-import type PhysicsCelestial from "./Modules/BaseModule/Relative/Celestial/PhysicsCelestial";
-import TemporalState from "./Modules/BaseModule/Relative/State/TemporalState";
+import type GravityCelestial from "./Modules/BaseModule/Celestial/GravityCelestial";
 
 /*
 	This class stores global variables local to the current Universe/save game.
@@ -9,9 +7,6 @@ import TemporalState from "./Modules/BaseModule/Relative/State/TemporalState";
 	game is more developed (has menus/multisave/etc.)
 */
 
-// Uses relative TemporalStates for maintaining precision
-// over very long timescales (>1 year?)
 // eslint-disable-next-line prefer-const
-export let globalTime: TemporalState = new TemporalState(0);
+export let solarSystemScale: number = 1 / 500_000_000;//1 / 5_000_000;
 export const rootGravityCelestials: GravityCelestial[] = [];
-export const rootPhysicsCelestials: PhysicsCelestial[] = [];

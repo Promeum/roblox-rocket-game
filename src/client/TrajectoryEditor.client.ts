@@ -28,7 +28,7 @@ function setupSlider(dVSlider: Frame, range: NumberRange, step: number, textOut:
 		buttonDown = true;
 	});
 
-	RunService.PreSimulation.Connect(() => {
+	RunService.Heartbeat.Connect(() => {
 		if (buttonDown) {
 			const mouseX: number = UserInputService.GetMouseLocation().X
 			let scaledValue: number = math.clamp((mouseX - Slider.AbsolutePosition.X) / Slider.AbsoluteSize.X, 0, 1)//math.clamp((mouseX - Slider.AbsolutePosition.X) / Slider.AbsoluteSize.X, 0, 1)

@@ -3,6 +3,5 @@
 /include
 *.tsbuildinfo
 *.rbxl
-THEPLAN.txt
-OrbitalTrajectory-11-16-2025.txt
+*.lock
 main.client.ts.txt

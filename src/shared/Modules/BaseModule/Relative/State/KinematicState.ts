@@ -1,6 +1,7 @@
 // import { $assert } from "rbxts-transform-debug";
-import State from ".";
 import Vector3D from "shared/Modules/Libraries/Vector3D";
+
+import State from ".";
 import AccelerationState from "./AccelerationState";
 
 export default class KinematicState extends State {
@@ -41,10 +42,10 @@ export default class KinematicState extends State {
 			relativeTo = arg2;
 		}
 
-		assert((position.X === position.X) && (position.Y === position.Y) && (position.Z === position.Z), `KinematicState constructor() position is NaN (${position})`);
-		assert((velocity.X === velocity.X) && (velocity.Y === velocity.Y) && (velocity.Z === velocity.Z), `KinematicState constructor() velocity is NaN (${velocity})`);
+		// assert((position.X === position.X) && (position.Y === position.Y) && (position.Z === position.Z), `KinematicState constructor() position is NaN (${position})`);
+		// assert((velocity.X === velocity.X) && (velocity.Y === velocity.Y) && (velocity.Z === velocity.Z), `KinematicState constructor() velocity is NaN (${velocity})`);
 		super(relativeTo);
-        this.position = position;
+		this.position = position;
 		this.velocity = velocity;
 	}
 
@@ -70,7 +71,7 @@ export default class KinematicState extends State {
 
 	// Comparisons
 
-	public equals(other?: KinematicState): boolean {
+	public equals(other?: KinematicState): other is KinematicState {
 		if (this !== undefined && other !== undefined) {
 			if (this.position.equals(other.position) && this.velocity.equals(other.velocity))
 				if (this.hasRelative() && other.hasRelative())
@@ -215,24 +216,27 @@ export default class KinematicState extends State {
 
 	// Wrap super methods with current type
 
-    public convergenceIndex(other: KinematicState): number {
-        return super.convergenceIndex(other);
-    }
+	override convergenceIndex(other: KinematicState): number {
+		return super.convergenceIndex(other);
+	}
 
-	public getRelative(): KinematicState {
-        return super.getRelative() as KinematicState;
-    }
+	override getRelative(): KinematicState {
+		return super.getRelative() as KinematicState;
+	}
 
-	public getRelativeOrUndefined() : KinematicState | undefined {
-        return super.getRelativeOrUndefined() as KinematicState | undefined;
-    }
+	override getRelativeOrUndefined() : KinematicState | undefined {
+		return super.getRelativeOrUndefined() as KinematicState | undefined;
+	}
 
-    public getRelativeTree(): KinematicState[] {
-        return super.getRelativeTree() as KinematicState[];
-    }
+	override getRelativeTree(): KinematicState[] {
+		return super.getRelativeTree() as KinematicState[];
+	}
 
-	public convergenceItem(other: KinematicState): KinematicState | undefined {
-        return super.convergenceItem(other) as KinematicState | undefined;
-    }
-    
+	override convergenceItem(other: KinematicState): KinematicState | undefined {
+		return super.convergenceItem(other) as KinematicState | undefined;
+	}
+
+	override deepClone(): KinematicState {
+		return this;
+	}
 }

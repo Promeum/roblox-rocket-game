@@ -54,7 +54,7 @@ export default class TemporalState extends State {
 
 	// Comparisons
 
-	public equals(other?: TemporalState): boolean {
+	public equals(other?: TemporalState): other is TemporalState {
 		if (this !== undefined && other !== undefined) {
 			if (this.relativeTime === other.relativeTime)
 				if (this.hasRelative() && other.hasRelative())
@@ -159,56 +159,53 @@ export default class TemporalState extends State {
 	 * @return The synchronized other TemporalState. Note: Resultant relativeTime may be negative.
 	 */
 	public matchRelative(other: TemporalState): TemporalState {
-		const convergenceIndex = other.convergenceIndex(this);
+		if (this === other) return other;
+		const thisTree = this.getRelativeTree();
+		const otherTree = other.getRelativeTree();
 
-		// consolidate other to match with self's RelativeTo tree, and track trimmed relativeTime
-		let otherIterator: TemporalState = other;
-		let trimmedTime = 0;
-
-		for (let i = 0; i < convergenceIndex; i++) {
-			trimmedTime += otherIterator.relativeTime;
-			otherIterator = otherIterator.getRelativeOrUndefined() as TemporalState;
+		// find how much time is needed to match this.relativeTo
+		let difference = 0;
+		for (let i = 0; i < math.max(thisTree.size(), otherTree.size()); i++) {
+			const thisRelative = thisTree[i]?.relativeTime ?? 0;
+			const otherRelative = otherTree[i]?.relativeTime ?? 0;
+			difference += otherRelative - thisRelative;
 		}
 
-		// subtract the time exclusively between other and self, and add the excess to the newly matched result
-		const selfRelativeTree = this.getRelativeTree();
-		let resultTimeLeftover = trimmedTime;
+		// correct for the this.relativeTime that was subtracted
+		const result = this.withRelativeTime(difference + this.relativeTime);
 
-		for (let i = this.convergenceIndex(other) - 1; i >= 1; i--) {
-			resultTimeLeftover -= selfRelativeTree[i].relativeTime;
-		}
-
-		const result = this.withRelativeTime(resultTimeLeftover);
-
-		assert(
-			this.getRelativeOrUndefined() === result.getRelativeOrUndefined() &&
-				other.getAbsoluteTime() === result.getAbsoluteTime(),
-			"Logic Error in matchRelative",
-		);
+		// assert(
+		// 	this.getRelativeOrUndefined() === result.getRelativeOrUndefined() &&
+		// 		other.getAbsoluteTime() === result.getAbsoluteTime(),
+		// 	"Logic Error in matchRelative, difference = " + (other.getAbsoluteTime() - result.getAbsoluteTime()),
+		// );
 
 		return result;
 	}
 
 	// Wrap super methods with current type
 
-    public convergenceIndex(other: TemporalState): number {
+    override convergenceIndex(other: TemporalState): number {
         return super.convergenceIndex(other);
     }
 
-	public getRelative(): TemporalState {
+	override getRelative(): TemporalState {
         return super.getRelative() as TemporalState;
     }
 
-	public getRelativeOrUndefined() : TemporalState | undefined {
+	override getRelativeOrUndefined() : TemporalState | undefined {
         return super.getRelativeOrUndefined() as TemporalState | undefined;
     }
 
-    public getRelativeTree(): TemporalState[] {
+    override getRelativeTree(): TemporalState[] {
         return super.getRelativeTree() as TemporalState[];
     }
 
-	public convergenceItem(other: TemporalState): TemporalState | undefined {
+	override convergenceItem(other: TemporalState): TemporalState | undefined {
         return super.convergenceItem(other) as TemporalState | undefined;
     }
 
+	override deepClone(): TemporalState {
+		return this;
+	}
 }

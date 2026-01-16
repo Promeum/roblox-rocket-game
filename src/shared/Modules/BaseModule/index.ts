@@ -1,30 +1,30 @@
 import Vector3D from "../Libraries/Vector3D";
-import { SOLAR_SYSTEM_SCALE } from "shared/Constants";
+
+import * as Globals from "shared/Globals";
 
 /**
  * Base module (class) for all other modules.
  * Immutable. Abstract. Non-instantiatable.
  */
-export default class BaseModule {
-    public equals(other: BaseModule | undefined): boolean {
+export default abstract class BaseModule {
+    public equals(other?: BaseModule): other is BaseModule {
         return other instanceof BaseModule
     }
 
-	public deepClone(): BaseModule {
-        return this
-    }
+	public abstract deepClone(): BaseModule
 
     /**
      * DEBUG ONLY
      */
-    public _testpart(name: string, color: Color3, size: number, position: Vector3D, parent: Instance) {
+    public _testpart(name: string, color: Color3, size: number, position: Vector3D, parent: Instance, shape?: Enum.PartType) {
         const startpart: Part = new Instance("Part");
         startpart.Name = name;
         startpart.Anchored = true;
         startpart.Size = Vector3.one.mul(size);
+        startpart.Shape = shape ?? Enum.PartType.Block;
         startpart.Material = Enum.Material.Neon;
         startpart.Color = color;
-        startpart.Position = position.mul(SOLAR_SYSTEM_SCALE).toVector3();
+        startpart.Position = position.toVector3();
         startpart.Parent = parent;
     }
 }

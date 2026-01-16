@@ -163,12 +163,16 @@ export default class KinematicTemporalState extends State {
 	/**
 	 * Checks equality with another KinematicTemporalState.
 	 */
-	public equals(other?: KinematicTemporalState): boolean {
+	public equals(other?: KinematicTemporalState): other is KinematicTemporalState {
         if (this === undefined || other === undefined)
             return this === undefined && other === undefined;
 
 		return this.kinematicState.equals(other.kinematicState) && 
 			   this.temporalState.equals(other.temporalState);
+	}
+
+	override deepClone(): KinematicTemporalState {
+		return this;
 	}
 
 	// Disabled supermethods
@@ -178,33 +182,33 @@ export default class KinematicTemporalState extends State {
 		error("KinematicTemporalState setRelative() Unsupported operation");
 	}
 
-	public hasRelative(): boolean {
+	override hasRelative(): boolean {
 		error("KinematicTemporalState hasRelative() Unsupported operation");
 	}
 	
-	public getRelative(): KinematicTemporalState {
+	override getRelative(): KinematicTemporalState {
 		error("KinematicTemporalState getRelative() Unsupported operation");
 	}
 
-	public getRelativeOrUndefined(): KinematicTemporalState | undefined {
+	override getRelativeOrUndefined(): KinematicTemporalState | undefined {
 		error("KinematicTemporalState getRelativeOrUndefined() Unsupported operation");
 	}
 
-	public getRelativeTree(): KinematicTemporalState[] {
+	override getRelativeTree(): KinematicTemporalState[] {
 		error("KinematicTemporalState getRelativeTree() Unsupported operation");
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	public convergenceIndex(other: KinematicTemporalState): number {
+	override convergenceIndex(other: KinematicTemporalState): number {
 		error("KinematicTemporalState convergenceIndex() Unsupported operation");
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	public convergenceItem(other: KinematicTemporalState): KinematicTemporalState | undefined {
+	override convergenceItem(other: KinematicTemporalState): KinematicTemporalState | undefined {
 		error("KinematicTemporalState convergenceItem() Unsupported operation");
 	}
 
-	public length(): number {
+	override length(): number {
 		error("KinematicTemporalState length() Unsupported operation");
 	}
 }
