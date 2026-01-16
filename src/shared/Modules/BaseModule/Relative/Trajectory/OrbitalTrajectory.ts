@@ -275,11 +275,11 @@ export default class OrbitalTrajectory extends Trajectory {
 			warn(`start positions inconsistent by ${realS.getPosition().sub(calcS.getPosition()).magnitude()}`)
 		}
 		this.start = this.calculateStateFromTime(0);
-if (this.orbiting.SOIRadius === 6371.01e3) this._testpart(
-	"the REAL start of this trajectory",
+if (this.orbiting.name === "Moon") this._testpart(
+	"SOI entry this trajectory (this.start)",
 	new BrickColor("Rust").Color,
-	0.9,
-	this.start.getKinematic().getPosition().mul(1/6371.01e3),
+	new Vector3D(0.5,2,0.5),
+	this.start.getKinematic().consolidateOnce().getPosition().mul(1/6371.01e3),
 	game.Workspace,
 	Enum.PartType.Cylinder
 )
@@ -546,7 +546,11 @@ if (this.orbiting.SOIRadius === 6371.01e3) this._testpart(
 	override orbitalIntersection(other: OrbitalTrajectory, distance: number): [OrbitalState, OrbitalState] | false {
 		// Current implementation: Naive true anomaly-based approach
 		const toOtherTrueAnomaly = (trueAnomaly: number): number => {
-			return other.orbit.timeToTrue(this.orbit.trueToTime(trueAnomaly));
+			return other.orbit.timeToTrue(
+				other.start.time.matchRelative(
+					new TemporalState(this.orbit.trueToTime(trueAnomaly), this.start.time)
+				).relativeTime
+			);
 		}
 		const distanceAtTrueAnomaly = (trueAnomaly: number): number => {
 			const thisPosition: Vector3D = this.perifocalToGlobal(
@@ -558,11 +562,18 @@ if (this.orbiting.SOIRadius === 6371.01e3) this._testpart(
 warn("orbitalIntersection() call")
 
 
-// let p="[" // points to test
-// for(let i=0;i<17;i++){//(let i=0;i<500;i++){
-// 	const o=(i*3)*math.pi/2 + this.trueAnomaly//const o=(i/6)*math.pi/2
+// let p="[" // function visual
+// for(let i=0;i<500;i++){
+// 	const o=(i/6)*math.pi/2
 // 	p+="("+o+"x,"+(distanceAtTrueAnomaly(o) - distance)+"),"
 // }p+="]"
+// print(p.gsub(",]","]")[0])
+// let p="[" // points to test
+// for(let i=0;i<17;i++){
+// 	const o=(i * 10 / 9)*math.pi + this.trueAnomaly
+// 	p+="("+o+"x,"+(distanceAtTrueAnomaly(o) - distance)+"),"
+// }p+="]"
+
 // print(p.gsub(",]","]")[0])
 
 // let q="[" // found roots
@@ -573,15 +584,22 @@ warn("orbitalIntersection() call")
 		let guess = 0;
 		let orbitalIntersection: [number, boolean] = [-1, false];
 		while (guessCount < 17) {
-			guess = (guessCount*3) * math.pi / 2 + this.trueAnomaly;
+			guess = (guessCount * 10 / 9) * math.pi + this.trueAnomaly;
 			guessCount++;
 			orbitalIntersection = newtonRaphson(
 				tA => distanceAtTrueAnomaly(tA) - distance,
-				tA => (distanceAtTrueAnomaly(tA + 0.0001) - distanceAtTrueAnomaly(tA - 0.0001)) / 0.0002, // secant apporach... could there be a better way?
+				tA => (distanceAtTrueAnomaly(tA + 0.00001) - distanceAtTrueAnomaly(tA - 0.00001)) / 0.00002, // secant approach... could there be a better way?
 				guess, 1e-4, undefined, 20
 			);
 
-			if (orbitalIntersection[1] && orbitalIntersection[0] >= this.trueAnomaly) {
+			if (
+				orbitalIntersection[1] // root must be close enough to 0
+				&& orbitalIntersection[0] >= this.trueAnomaly // root must be in the future
+				&& ( // derivative of distance must be negative (entering SOI)
+					distanceAtTrueAnomaly(orbitalIntersection[0] + 0.0001)
+					- distanceAtTrueAnomaly(orbitalIntersection[0] - 0.0001)) / 0.0002
+					< 0
+			) {
 				roots.push(orbitalIntersection[0]);
 // print("orbital intersection found")
 // q+="("+orbitalIntersection[0]+"x,"+(distanceAtTrueAnomaly(orbitalIntersection[0])-distance)+"),"
@@ -595,15 +613,19 @@ warn("orbitalIntersection() call")
 
 // q+="]"
 // print(q.gsub(",]","]")[0])
+if (answer !== false){
+// print("this trajectory's start anomaly:")
+// print(this.trueAnomaly)
 // print("the answer")
 // print("("+answer+"x,"+(distanceAtTrueAnomaly(answer)-distance)+")")
-if (answer !== false) this._testpart(
-	"the start of the going in",
-	new BrickColor("Shamrock").Color,
-	0.9,
+this._testpart(
+	"SOI entry last trajectory (post-calc)",
+	new BrickColor("Sea green").Color,
+	Vector3D.one.mul(0.9),
 	this.calculateStateFromTrueAnomaly(answer).getKinematic().getPosition().mul(1/6371.01e3),
 	game.Workspace
 )
+}
 		if (answer !== false) {
 			return [
 				this.calculateStateFromTrueAnomaly(answer),

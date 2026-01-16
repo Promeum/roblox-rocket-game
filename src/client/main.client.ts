@@ -77,7 +77,7 @@ const Moon = new GravityCelestial(
 const satellite = new PhysicsCelestial(
 	"Satellite",
 	new Vector3D(0, 0, -1e7),
-	new Vector3D(920, 300, 100),
+	new Vector3D(920, 300, 150), // new Vector3D(920, 300, 100), // moon SOI contact is nearly tangential (SOI entry/exit are very close together)
 	new TemporalState(0),[Sun],
 	Moon
 );
@@ -213,7 +213,7 @@ const anim = new DisplayAnimation(
 // }p+="]"
 // print(p.gsub(",]","]")[0])
 
-const timeWarpMultiplier = 120_000//20_000;
+const timeWarpMultiplier = 200_000//120_000//20_000;
 
 game.GetService("RunService").PreSimulation.Connect((deltaTime: number) => {
 	universe.globalTime = universe.globalTime.withIncrementTime(deltaTime * timeWarpMultiplier);

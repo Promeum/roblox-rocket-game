@@ -99,7 +99,7 @@ export default class CompositeTrajectory<T extends LinearTrajectory | OrbitalTra
 	private nextTrajectoryFromOrbital(): void {
 		assert(this.currentTrajectory instanceof OrbitalTrajectory);
 		// const selfPosition: KinematicState = this.startPosition.kinematicState;
-		let closestSOIEntryTime: number | false = false;
+		let closestSOIEntryTime: TemporalState | false = false;
 		let closestCelestialSOI: GravityCelestial | undefined | false = false;
 		let nextTrajectoryDirection: "in" | "out" | false = false;
 
@@ -110,8 +110,9 @@ export default class CompositeTrajectory<T extends LinearTrajectory | OrbitalTra
 				&& this.currentTrajectory.getApoapsis().getKinematic().getPosition().magnitude() > this.currentTrajectory.orbiting.SOIRadius
 			)
 		) {
+			// calculateStateFromMagnitude()-based finder
 			const SOIExit = this.currentTrajectory.calculateStateFromMagnitude(this.currentTrajectory.orbiting.SOIRadius);
-			closestSOIEntryTime = SOIExit.getKinematic().getRelativeTime();
+			closestSOIEntryTime = SOIExit.getKinematic().temporalState;
 
 if (closestSOIEntryTime !== closestSOIEntryTime) closestSOIEntryTime = false
 // this._testpart(
@@ -150,9 +151,9 @@ if (closestSOIEntryTime !== closestSOIEntryTime) closestSOIEntryTime = false
 print("start time:")
 				if (entry !== false) {
 					// set new closest (or keep current closest) SOI
-					const SOIEntryTime = entry.time.relativeTime;
+					const SOIEntryTime = entry.time;
 print(SOIEntryTime)
-					if (closestSOIEntryTime === false || SOIEntryTime < closestSOIEntryTime) {
+					if (closestSOIEntryTime === false || SOIEntryTime.lessThan(closestSOIEntryTime)) {
 						closestSOIEntryTime = SOIEntryTime;
 						closestCelestialSOI = gravityCelestial;
 						nextTrajectoryDirection = "in";
@@ -164,7 +165,7 @@ else print("[none found]")
 
 		if (closestSOIEntryTime !== false) { // trajectory exits the current SOI
 			assert(closestCelestialSOI !== false);
-			this.timeOfNextTrajectory = new TemporalState(closestSOIEntryTime, this.start.time);
+			this.timeOfNextTrajectory = closestSOIEntryTime;
 			this.nextTrajectoryDirectionCache = nextTrajectoryDirection as nextTrajectoryDirectionType<T> | false;
 			this.nextOrbitingCache = closestCelestialSOI;
 			if (this.nextTrajectoryDirectionCache === "out") {
@@ -207,9 +208,9 @@ else print("[none found]")
 					futureThisState.temporalState
 				);
 this._testpart(
-	"next trajectory start pos",
+	"SOI entry last trajectory (pre-instantiation)",
 	new BrickColor("Neon orange").Color,
-	1.1,
+	Vector3D.one.mul(1),
 	startState.consolidateOnce().getPosition().mul(1/6371.01e3),
 	game.Workspace,
 	Enum.PartType.Ball
