@@ -60,7 +60,7 @@ export default class Vector3D {
 
 	// --- Binary arithmetic with overloads ---
 
-	add(other: Vector3D | number): Vector3D {
+	add(other: Vector3D | Vector3 | number): Vector3D {
 		if (typeIs(other, "number")) {
 			return new Vector3D(this.X + other, this.Y + other, this.Z + other);
 		} else {
@@ -68,7 +68,7 @@ export default class Vector3D {
 		}
 	}
 
-	sub(other: Vector3D | number): Vector3D {
+	sub(other: Vector3D | Vector3 | number): Vector3D {
 		if (typeIs(other, "number")) {
 			return new Vector3D(this.X - other, this.Y - other, this.Z - other);
 		} else {
@@ -76,7 +76,7 @@ export default class Vector3D {
 		}
 	}
 
-	mul(other: Vector3D | number): Vector3D {
+	mul(other: Vector3D | Vector3 | number): Vector3D {
 		if (typeIs(other, "number")) {
 			return new Vector3D(this.X * other, this.Y * other, this.Z * other);
 		} else {
@@ -84,7 +84,7 @@ export default class Vector3D {
 		}
 	}
 
-	div(other: Vector3D | number): Vector3D {
+	div(other: Vector3D | Vector3 | number): Vector3D {
 		if (typeIs(other, "number")) {
 			return new Vector3D(this.X / other, this.Y / other, this.Z / other);
 		} else {
@@ -92,7 +92,7 @@ export default class Vector3D {
 		}
 	}
 
-	idiv(other: Vector3D | number): Vector3D {
+	idiv(other: Vector3D | Vector3 | number): Vector3D {
 		if (typeIs(other, "number")) {
 			return new Vector3D(math.floor(this.X / other), math.floor(this.Y / other), math.floor(this.Z / other));
 		} else {
@@ -141,8 +141,6 @@ export default class Vector3D {
 			this.X * other.Z - this.Z * other.X,
 			this.Y * other.X - this.X * other.Y,
 		);
-		// In practice: use Vector3D with Y and Z swapped before cross product!
-		// cross product result: math = (x, y, z) -> game = (-x, -y, -z)
 	}
 
 	angle(other: Vector3D, axis?: Vector3D): number {

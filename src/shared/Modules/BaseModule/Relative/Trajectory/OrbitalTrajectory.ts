@@ -1,7 +1,6 @@
-// import { $assert, $error, $warn } from "rbxts-transform-debug";
 import Vector3D from "../../../Libraries/Vector3D";
-// import MOID from "../../Libraries/MOID";
 
+import Orientation from "../../Orientation";
 import KinematicState from "../State/KinematicState";
 import TemporalState from "../State/TemporalState";
 import AccelerationState from "../State/AccelerationState";
@@ -11,12 +10,6 @@ import OrbitalState from "../TrajectoryState/OrbitalState";
 import Trajectory from ".";
 
 import type GravityCelestial from "../../Celestial/GravityCelestial";
-
-/*
-	TODO:
-	Move the complex math stuff into a library?
-	Add a Bisection Search function?
-*/
 
 /**
  * OrbitalTrajectory represents an orbital trajectory with orbital motion.
@@ -285,11 +278,6 @@ if (this.orbiting.name === "Moon") this._testpart(
 )
 	}
 
-	// TODO: Find out if the Unversal Anomaly can handle circular and parabolic orbits
-	// May switch out to that if its faster...
-	// Or if not then transfer all the math to inner classes
-	// to seperate the control flow from the math!
-
 	// Utility Methods
 
 	/**
@@ -300,33 +288,14 @@ if (this.orbiting.name === "Moon") this._testpart(
 	 */
 	private perifocalToGlobal(toTransform: Vector3D): Vector3D {
 		// change all vectors into math basis
-		// this mystery math was achieved through trial and error
 		const p = new Vector3D(this.w.X, this.w.Z, this.w.Y);
 		const q = new Vector3D(this.p.X, this.p.Z, this.p.Y);
 		const w = new Vector3D(this.q.X, this.q.Z, this.q.Y);
 		const v = new Vector3D(toTransform.X, toTransform.Z, toTransform.Y);
 
-		const result = inverseChangeBasis(v, p, q, w);
+		const result = Orientation.inverseChangeBasis(v, p, q, w);
+		// return in game space
 		return new Vector3D(result.X, result.Z, result.Y);
-
-		// rotate 3 times to change the basis (angles adjusted to be in math basis)
-		// const p1 = axisRotation(p, w, -this.argumentOfPeriapsis);
-		// const w2 = axisRotation(w, p1, -this.inclination);
-
-		// const result = axisRotation(
-		// 	axisRotation(
-		// 		axisRotation(
-		// 			v,
-		// 			w2,
-		// 			this.rightAscension
-		// 		),
-		// 		p1,
-		// 		this.inclination
-		// 	),
-		// 	w,
-		// 	this.argumentOfPeriapsis
-		// );
-		// return new Vector3D(result.X, result.Z, result.Y);
 	}
 
 	/**
@@ -337,34 +306,14 @@ if (this.orbiting.name === "Moon") this._testpart(
 	 */
 	private globalToPerifocal(toTransform: Vector3D): Vector3D {
 		// change all vectors into math basis
-		// this mystery math was achieved through trial and error
 		const p = new Vector3D(this.w.X, this.w.Z, this.w.Y);
 		const q = new Vector3D(this.p.X, this.p.Z, this.p.Y);
 		const w = new Vector3D(this.q.X, this.q.Z, this.q.Y);
 		const v = new Vector3D(toTransform.X, toTransform.Z, toTransform.Y);
 
-		const result = changeBasis(v, p, q, w);
+		const result = Orientation.changeBasis(v, p, q, w);
 		// return in game space
 		return new Vector3D(result.X, result.Z, result.Y);
-
-		// // rotate 3 times to change the basis (angles adjusted to be in math basis)
-		// const p1 = axisRotation(p, w, -this.argumentOfPeriapsis);
-		// const w2 = axisRotation(w, p1, -this.inclination);
-
-		// const result = axisRotation(
-		// 	axisRotation(
-		// 		axisRotation(
-		// 			v,
-		// 			w,
-		// 			-this.argumentOfPeriapsis
-		// 		),
-		// 		p1,
-		// 		-this.inclination
-		// 	),
-		// 	w2,
-		// 	-this.rightAscension
-		// );
-		// return new Vector3D(result.X, result.Z, result.Y);
 	}
 
 	/**
@@ -711,113 +660,6 @@ function asinh(n: number): number {
 }
 
 /**
- * Utility function to convert a 2D polar coordinate in the X-Z plane.
- */
-function polarToCartesian(magnitude: number, angle: number): Vector3D {
-	return new Vector3D(
-		magnitude * math.cos(angle),
-		0,
-		magnitude * math.sin(angle)
-	);
-}
-
-/**
- * Utility function to convert a Vector3D in the X-Z plane
- * to a magnitude and angle.
- * @param toTransform toTransform.Y is assumed to be 0.
- * @returns An array containing a magnitude and angle, respectively.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function cartesianToPolar(toTransform: Vector3D): [number, number] {
-	return [
-		math.sqrt(toTransform.X ** 2 + toTransform.Z ** 2),
-		math.atan2(toTransform.Z, toTransform.X)
-	];
-}
-
-/**
- * Given a vector in the standard basis, compute the vector in the basis {i,j,k}.
- * All vectors are assumed to be in math basis.
- * @returns A vector in math basis.
- */
-function changeBasis(toTransform: Vector3D, i: Vector3D, j: Vector3D, k: Vector3D): Vector3D {
-	// math change of basis formula via martix multiplication
-	// https://stemandmusic.in/maths/mvt-algebra/vectorCB.php
-	return new Vector3D(
-		i.dot(toTransform),
-		j.dot(toTransform),
-		k.dot(toTransform)
-	);
-}
-
-/**
- * Given a vector in the basis {i,j,k}, compute the vector in the standard basis.
- * i, j, and k must all be perpendicular unit vectors.
- * All vectors are assumed to be in math basis.
- * @returns A vector in math basis.
- */
-function inverseChangeBasis(toTransform: Vector3D, i: Vector3D, j: Vector3D, k: Vector3D): Vector3D {
-	// math change of basis formula via martix multiplication
-	return new Vector3D(
-		i.X * toTransform.X + j.X * toTransform.Y + k.X * toTransform.Z,
-		i.Y * toTransform.X + j.Y * toTransform.Y + k.Y * toTransform.Z,
-		i.Z * toTransform.X + j.Z * toTransform.Y + k.Z * toTransform.Z
-	);
-}
-
-/**
- * Rotates a vector counterclockwise relative to axis.
- * All vectors are assumed to be in math basis.
- * https://stackoverflow.com/questions/6721544/circular-rotation-around-an-arbitrary-axis
- * @param vector The vector to be rotated.
- * @param axis The axis of rotation. Assumed to be a unit vector.
- * @param angle The angle of rotation.
- * @returns A vector in math basis.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function axisRotation(vector: Vector3D, axis: Vector3D, angle: number): Vector3D {
-	// Quaternion method
-	const q0 = math.cos(angle / 2);
-	const q1 = math.sin(angle / 2) * axis.X;
-	const q2 = math.sin(angle / 2) * axis.Y;
-	const q3 = math.sin(angle / 2) * axis.Z;
-
-	return new Vector3D(
-		(q0*q0 + q1*q1 - q2*q2 - q3*q3) * vector.X + 2*(q1*q2 - q0*q3) * vector.Y + 2*(q1*q3 + q0*q2) * vector.Z,
-		2*(q1*q2 + q0*q3) * vector.X + (q0*q0 - q1*q1 + q2*q2 - q3*q3) * vector.Y + 2*(q2*q3 - q0*q1) * vector.Z,
-		2*(q1*q3 - q0*q2) * vector.X + 2*(q2*q3 + q0*q1) * vector.Y + (q0*q0 - q1*q1 - q2*q2 + q3*q3) * vector.Z
-	);
-
-	// // Rotation matrix method
-	// const c = math.cos(angle);
-	// const s = math.sin(angle);
-	// const oneMinusC = 1 - c;
-	// const matrix = [
-	// 	[
-	// 		axis.X * axis.X * oneMinusC + c,
-	// 		axis.X * axis.Y * oneMinusC - axis.Z * s,
-	// 		axis.X * axis.Z * oneMinusC + axis.Y * s
-	// 	],
-	// 	[
-	// 		axis.Y * axis.X * oneMinusC + axis.Z * s,
-	// 		axis.Y * axis.Y * oneMinusC + c,
-	// 		axis.Y * axis.Z * oneMinusC - axis.X * s
-	// 	],
-	// 	[
-	// 		axis.Z * axis.X * oneMinusC - axis.Y * s,
-	// 		axis.Z * axis.Y * oneMinusC + axis.X * s,
-	// 		axis.Z * axis.Z * oneMinusC + c
-	// 	]
-	// ];
-
-	// return new Vector3D(
-	// 	matrix[0][0] * vector.X + matrix[0][1] * vector.Y + matrix[0][2] * vector.Z,
-	// 	matrix[1][0] * vector.X + matrix[1][1] * vector.Y + matrix[1][2] * vector.Z,
-	// 	matrix[2][0] * vector.X + matrix[2][1] * vector.Y + matrix[2][2] * vector.Z
-	// )
-}
-
-/**
  * The Newton-Raphson root-finding algorithm.
  * @param f Function to find the root of.
  * @param fp Derivative of f(x).
@@ -899,10 +741,10 @@ abstract class Orbit {
 		const mu = this.outer.mu;
 		const h = this.outer.angularMomentum.magnitude();
 
-		// Orbit equation
+		// Orbit equation, vectors are in math space
 		const altitude = this.trueToAltitude(trueAnomaly);
-		let positionPerifocal: Vector3D = polarToCartesian(altitude, trueAnomaly);
-		positionPerifocal = new Vector3D(-positionPerifocal.Z, positionPerifocal.Y, positionPerifocal.X);
+		const cartesian2D = Orientation.polarToCartesian(altitude, trueAnomaly)
+		const positionPerifocal: Vector3D = new Vector3D(cartesian2D[0], cartesian2D[1], 0);
 		// From vis viva equation
 		const velocityPerifocal: Vector3D = new Vector3D(
 			-(e + math.cos(trueAnomaly)),

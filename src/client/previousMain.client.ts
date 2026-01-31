@@ -1,278 +1,323 @@
-// import KinematicTemporalState from "shared/Modules/BaseModule/KinematicTemporalState";
-// import GravityCelestial from "shared/Modules/BaseModule/Relative/Celestial/GravityCelestial";
-// import PhysicsCelestial from "shared/Modules/BaseModule/Relative/Celestial/PhysicsCelestial";
-// import KinematicState from "shared/Modules/BaseModule/Relative/State/KinematicState";
-// import TemporalState from "shared/Modules/BaseModule/Relative/State/TemporalState";
 // import Vector3D from "shared/Modules/Libraries/Vector3D";
 
-// print("main.client.ts");
+// import TemporalState from "shared/Modules/BaseModule/Relative/State/TemporalState";
+// import GravityCelestial from "shared/Modules/BaseModule/Celestial/GravityCelestial";
+// import PhysicsCelestial from "shared/Modules/BaseModule/Celestial/PhysicsCelestial";
 
-// print("Solar System")
+// // import * as Globals from "shared/Globals";
+// import UniverseInstance from "shared/Modules/BaseModule/Universe/UniverseInstance";
+// import AstronomicalView from "shared/Modules/BaseModule/View/AstronomicalView";
 
-// /*
-// 	TODO:
-// 	First get the lune workflow in order!!
+// // Initialize Celestials
 
-// 	Clean up the inheritance tree to reduce mess and tidy up spilled spaghetti code
-	
-// 	Proposal for new inheritance tree:
-// 	BaseModule
-// 	- State (maybe?) (what would this do other than just being a parent) {Basically an Interface} [new]
-// 		- OrientationState (maybe?) (very scary math aaaa) [new]
-// 		- KinematicState (velocity and position, with means for inputting acceleration) [MovingObject]
-// 		- TemporalState (time) [TemporalPosition]
-// 		- KinematicTemporalState (KinematicState + TemporalState) [SolarSystemObject]
-// 			* Do I need to define a class for all (or just some) of the composite states
-// 			* or is just one general CompositeState class enough?
-// 	- Trajectory (maybe?) (what would this do other than just being a parent) {Basically an Interface} [new]
-// 		- LinearTrajectory
-// 		- OrbitalTrajectory
-// 		- TrajectoryHolder [TrajectoryHolderObject]
-// 		- TrajectoryWrapper (maybe?) (is this middleman class really necessary?) [TrajectoryObject]
-// 	- Celestial (maybe?) (worth making this class for the inheritance tree and relative GravityBody?) [a bit of SolarSystemObject; mostly new]
-// 		- GravityBody
-// 		- PhysicsBody (Need to account for development roadmap [adding actual rocket objects to the game])
-// */
+// // (Solar System)
 
-// /*
-
-// Notes
-// Source for positions and velocities of bodies
-// https://ssd.jpl.nasa.gov/horizons/app.html#/
-
-// */
-
-
-// // initialize Planets
-// // All statistics from Wikipedia
-// let Sun = new GravityCelestial(
-// 	new KinematicTemporalState(
-//         new KinematicState(
-//             new Vector3D(0, 0, 0),
-//             new Vector3D(0, 0, 0),
-//         ),
-//         new TemporalState(0)
-//     ),
-// 	new Instance("Part"),
+// const Sun = new GravityCelestial(
+// 	"Sun",
+// 	new Vector3D(0, 0, 0),
+// 	new Vector3D(0, 0, 0),
+// 	new TemporalState(0),
 // 	1.9885e30,
-// 	1.5e12
-// )
-// let Mercury = new GravityCelestial(
-// 	new KinematicTemporalState(
-//         new KinematicState(
-//             new Vector3D(-2.185835358441481E+10, -3.485005094346408E+09, -6.614625011845423E+10),
-//             new Vector3D(3.650093369107909E+04, -4.367018609323549E+03, -1.273461833585731E+04),
-//         ),
-//         new TemporalState(0)
-//     ),
-// 	new Instance("Part"),
+// 	695700e3,
+// 	new BrickColor("Pastel brown").Color
+// );
+// const Mercury = new GravityCelestial(
+// 	"Mercury",
+// 	new Vector3D(-2.185835358441481E+10, -3.485005094346408E+09, -6.614625011845423E+10),
+// 	new Vector3D(3.650093369107909E+04, -4.367018609323549E+03, -1.273461833585731E+04),
+// 	new TemporalState(0),
 // 	3.302e23,
-// 	1e8,
+// 	2439.4e3,
+// 	new BrickColor("Smoky grey").Color,
 // 	Sun
-// )
-// let Venus = new GravityCelestial(
-// 	new KinematicTemporalState(
-//         new KinematicState(
-//             new Vector3D(-1.075385106364918E+11, 6.160527557804195E+09, -2.057163683439167E+09),
-//             new Vector3D(4.611733871187763E+02, -5.279208622663791E+02, -3.516748102702129E+04),
-//         ),
-//         new TemporalState(0)
-//     ),
-// 	new Instance("Part"),
+// );
+// const Venus = new GravityCelestial(
+// 	"Venus",
+// 	new Vector3D(-1.075385106364918E+11, 6.160527557804195E+09, -2.057163683439167E+09),
+// 	new Vector3D(4.611733871187763E+02, -5.279208622663791E+02, -3.516748102702129E+04),
+// 	new TemporalState(0),
 // 	48.685e23,
-// 	1.2e9,
+// 	6051.84e3,
+// 	new BrickColor("Bronze").Color,
 // 	Sun
-// )
-// let Earth = new GravityCelestial(
-// 	new KinematicTemporalState(
-//         new KinematicState(
-//             new Vector3D(-2.344796397128329E+10, -1.638736262440681E+07, 1.452213061233350E+11),
-//             new Vector3D(-2.989434743673573E+04, 9.000105203986752E-01, -4.853641762746061E+03),
-//         ),
-//         new TemporalState(0)
-//     ),
-// 	new Instance("Part"),
+// );
+// const Earth = new GravityCelestial(
+// 	"Earth",
+// 	new Vector3D(-2.344796397128329E+10, -1.638736262440681E+07, 1.452213061233350E+11),
+// 	new Vector3D(-2.989434743673573E+04, 9.000105203986752E-01, -4.853641762746061E+03),
+// 	new TemporalState(0),
 // 	5.97219e24,
-// 	1.5e9,
+// 	6371.01e3,
+// 	new BrickColor("Steel blue").Color,
 // 	Sun
-// )
-// let Mars = new GravityCelestial(
-// 	new KinematicTemporalState(
-//         new KinematicState(
-//             new Vector3D(2.079413286219068E+11, -5.180248494584806E+09, -5.677471461403446E+09),
-//             new Vector3D(1.615287420127653E+03, 5.160202387037263E+02, 2.627674229888704E+04),
-//         ),
-//         new TemporalState(0)
-//     ),
-// 	new Instance("Part"),
+// );
+// const Mars = new GravityCelestial(
+// 	"Mars",
+// 	new Vector3D(2.079413286219068E+11, -5.180248494584806E+09, -5.677471461403446E+09),
+// 	// eslint-disable-next-line no-loss-of-precision
+// 	new Vector3D(1.615287420127653E+03, 5.160202387037263E+02, 2.627674229888704E+04),
+// 	new TemporalState(0),
 // 	6.4171e23,
-// 	2.4e8,
+// 	3389.92e3,
+// 	new BrickColor("Br. reddish orange").Color,
 // 	Sun
-// )
-// let Moon = new GravityCelestial(
-// 	new KinematicTemporalState(
-//         new KinematicState(
-//             new Vector3D(-3.205398330266103E+08, 3.658599781326822E+07, -2.380401614217560E+08),
-//             new Vector3D(5.511228197116279E+02, -1.568395408118706E+00, -8.066150606766933E+02),
-//         ),
-//         new TemporalState(0)
-//     ),
-// 	new Instance("Part"),
+// );
+// const Moon = new GravityCelestial(
+// 	"Moon",
+// 	new Vector3D(-3.205398330266103E+08, 3.658599781326822E+07, -2.380401614217560E+08),
+// 	// eslint-disable-next-line no-loss-of-precision
+// 	new Vector3D(5.511228197116279E+02, -1.568395408118706E+00, -8.066150606766933E+02),
+// 	new TemporalState(0),
 // 	7.349e22,
-// 	66e6,
+// 	1737.53e3,
+// 	new BrickColor("Dark stone grey").Color,
 // 	Earth
-// )
-// // let Satellite = SolarSystemPhysicsBody.new(
-// // 	new Vector3D(0, 0, 1e7),
-// // 	new Vector3D(-1010, 0, 0),
-// // 	new Instance("Part"),
-// // 	Moon
-// // )
-// let Satellite = new PhysicsCelestial(
-// 	new KinematicTemporalState(
-//         new KinematicState(
-//             new Vector3D(0, 0, 1e7),
-//             new Vector3D(-1010, 0, 0),
-//         ),
-//         new TemporalState(0)
-//     ),
-// 	new Instance("Part"),
+// );
+
+// // Satellite Setup
+
+// const satellite = new PhysicsCelestial(
+// 	"Satellite",
+// 	new Vector3D(0, 0, -1e7),
+// 	new Vector3D(920, 300, 100),
+// 	// new Vector3D(920, 300, 150), // 2nd trajectory orbit line is overdrawn
+// 	new TemporalState(0),[Sun],
 // 	Moon
+// );
+
+// // satellite (a PhysicsCelestial) needs manual setup
+// // PhysicsCelestials are planned to use 3D-placed UI elements in the future
+
+// const satPart: Part = new Instance("Part");
+
+// satPart.Shape = Enum.PartType.Block;
+// satPart.Anchored = true;
+// satPart.Material = Enum.Material.Neon;
+// satPart.Name = "satPart";
+// satPart.Color = new BrickColor("Fire Yellow").Color;
+// satPart.Size = new Vector3(1, 2, 1);
+
+// satPart.Parent = game.Workspace;
+
+// // Solar System Setup Complete
+
+// const universe: UniverseInstance = new UniverseInstance(
+// 	new TemporalState(0),
+// 	[Sun],
+// 	[satellite]
+// );
+
+// const startScale = 1 / Earth.radius;//1 / Mercury.radius;//1 / 500_000_000;
+
+// // debug.profilebegin("Init Solar System")
+
+// const view: AstronomicalView = new AstronomicalView(
+// 	universe, 360, undefined,
+// 	startScale,
+// 	Earth.calculateState(universe.globalTime).trajectoryState.getKinematic().getAbsolutePosition().negate()
+// );
+// view.draw();
+// view.viewFolder.Parent = game.Workspace;
+
+// // debug.profileend();
+
+// /*
+//  =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+// = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+// ================================================= DisplayAnimation class testing =================================================
+//  = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+//   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+// */
+
+// class DisplayAnimation {
+// 	public readonly duration: number;
+	
+// 	private readonly transitoryCelestial: GravityCelestial | undefined;
+// 	private readonly transitoryScale: number;
+// 	private readonly targetScale: number;
+
+// 	private lastScale: number = 0;
+
+// 	constructor(
+// 		public readonly astronomicalView: AstronomicalView,
+// 		public readonly startTime: TemporalState,
+// 		public readonly endTime: TemporalState,
+// 		public readonly startCelestial: GravityCelestial,
+// 		public readonly endCelestial: GravityCelestial,
+// 		private readonly originalScale: number
+// 	) {
+// 		this.duration = endTime.sub(startTime).relativeTime;
+// 		this.transitoryCelestial = startCelestial.calculateState(startTime)
+// 			.convergenceItem(endCelestial.calculateState(startTime)) as unknown as GravityCelestial | undefined;
+// 		this.transitoryScale = 1 / (this.transitoryCelestial?.radius ?? 5e8);
+// 		this.targetScale = 1 / this.endCelestial.radius;
+// 	}
+
+// 	/**
+// 	 * Displays a map view transition between different planets
+// 	 */
+// 	public draw(time?: TemporalState): [Vector3D, number] {
+// 		if (!time) time = this.astronomicalView.universe.globalTime;
+// 		const progress = (time.relativeTime - this.startTime.relativeTime) / this.duration;
+// 		let scale = this.lastScale;
+// 		let offset;
+// 		if (progress < 1/3) {
+// 			// print("a")
+// 			scale = interp2(this.originalScale, this.transitoryScale, progress * 3);
+// 			offset = this.startCelestial.calculateState(time)
+// 				.trajectoryState.getKinematic().getAbsolutePosition().negate();
+// 		} else if (progress >= 2/3) {
+// 			// print("c")
+// 			scale = interp2(this.targetScale, this.transitoryScale, (1 - (progress - 2/3) * 3));
+// 			offset = this.endCelestial.calculateState(time)
+// 				.trajectoryState.getKinematic().getAbsolutePosition().negate();
+// 		}
+// 		if (math.clamp(progress, 1/5, 4/5) === progress) {
+// 			// print("b")
+// 			offset = interp2Vector3D(
+// 				this.startCelestial.calculateState(time)
+// 					.trajectoryState.getKinematic().getAbsolutePosition().negate(),
+// 				this.endCelestial.calculateState(time)
+// 					.trajectoryState.getKinematic().getAbsolutePosition().negate(),
+// 					(progress - 1/5) * (5/3)
+// 			);
+// 		}
+
+// 		this.astronomicalView.draw(scale, offset, time);
+// 		this.lastScale = scale;
+// 		return [offset!, scale!];
+// 	}
+// }
+
+// function interp1(a: number, b: number, t: number): number {
+// 	return a + (b - a) * t ** (1/30);
+// }
+
+// function interp2(a: number, b: number, t: number): number {
+// 	return a + (b - a) * (
+// 		(math.sin(math.pi * (t - 1/2)) + 1) / 2
+// 	);
+// }
+
+// function interp2Vector3D(a: Vector3D, b: Vector3D, t: number): Vector3D {
+// 	return new Vector3D(
+// 		interp2(a.X, b.X, t),
+// 		interp2(a.Y, b.Y, t),
+// 		interp2(a.Z, b.Z, t),
+// 	)
+// }
+
+// const anim = new DisplayAnimation(
+// 	view, new TemporalState(100_000),
+// 	new TemporalState(300_000),
+// 	Mercury, Earth, startScale
 // )
 
-// let rootGravityBodies: GravityCelestial[] = {
-// 	Sun,
-// }
+// /*
+//  =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+// = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+// ========================================================= Rendering Loop =========================================================
+//  = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+//   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+// */
 
-// // set up the RootParts
-// function void makeRootPartFor(GBody: GravityCelestial, name: string, radius: number, color: BrickColor) {
-// 	GBody.RootPart.Name = name
-// 	GBody.RootPart.Shape = Enum.PartType.Ball
-// 	GBody.RootPart.Size = Vector3.one * (radius * Globals.solarSystemScale)
-// 	GBody.RootPart.Anchored = true
-// 	GBody.RootPart.Material = Enum.Material.Neon
-// 	GBody.RootPart.BrickColor = color
-// 	GBody.RootPart.Position = GBody:CalculateWorkspacePosition():ToVector3()
-// 	GBody.RootPart.Parent = workspace.Planets
-// }
+// // let p="[" // points to test
+// // for(let i=0;i<500;i++){
+// // 	const o=new TemporalState(i*100_000)
+// // 	p+="("+o.relativeTime+"x,"+(
+// // 		satellite.trajectory.nextTrajectory().currentTrajectory.calculateStateFromTime(o).getKinematic().getPosition().sub(
+// // 		Moon.trajectory.calculateStateFromTime(o).getKinematic().getPosition()).magnitude()
+// // 		- Moon.SOIRadius
+// // 	)+"),"
+// // }p+="]"
+// // print(p.gsub(",]","]")[0])
 
-// makeRootPartFor(Sun, "Sun", 695700e3, BrickColor.new("Pastel brown"));
-// makeRootPartFor(Mercury, "Mercury", 2439.4e3, BrickColor.new("Smoky grey"));
-// makeRootPartFor(Venus, "Venus", 6051.84e3, BrickColor.new("Bronze"));
-// makeRootPartFor(Mars, "Mars", 3389.92e3, BrickColor.new("Br. reddish orange"));
-// makeRootPartFor(Earth, "Earth", 6371.01e3, BrickColor.new("Steel blue"));
-// makeRootPartFor(Moon, "Moon", 1737.53e3, BrickColor.new("Dark stone grey"));
+// const timeWarpMultiplier = 20_000//200_000//120_000;
 
-// Satellite.RootPart.Name = "Satellite"
-// Satellite.RootPart.Size = Vector3.new(1, 4, 1.5) * (5e6 * Globals.solarSystemScale)
-// Satellite.RootPart.Anchored = true
-// Satellite.RootPart.Material = Enum.Material.Neon
-// Satellite.RootPart.BrickColor = BrickColor.new("Bright yellow")
-// Satellite.RootPart.Position = Satellite:CalculateWorkspacePosition():ToVector3()
-// Satellite.RootPart.Parent = workspace.Planets
+// game.GetService("RunService").PreSimulation.Connect((deltaTime: number) => {
+// 	universe.globalTime = universe.globalTime.withIncrementTime(deltaTime * timeWarpMultiplier);
+// 	debug.profilebegin("Draw Solar System")
+// 	// if (math.clamp(universe.globalTime.relativeTime, 100_000, 300_000) !== universe.globalTime.relativeTime) {
+// 	// 	const offset = (
+// 	// 		(universe.globalTime.relativeTime < 200_000) ?
+// 	// 			Mercury.calculateState(universe.globalTime).trajectoryState
+// 	// 				.getKinematic().getAbsolutePosition().negate()
+// 	// 		:
+// 	// 			Earth.calculateState(universe.globalTime).trajectoryState
+// 	// 				.getKinematic().getAbsolutePosition().negate()
+// 	// 	);
+// 		view.draw(
+// 			undefined,
+// 			Earth.calculateState(universe.globalTime).trajectoryState
+// 					.getKinematic().getAbsolutePosition().negate(),// offset,
+// 			universe.globalTime
+// 			// ( // zoom animation testing
+// 			// 	math.sin(universe.globalTime.relativeTime / timeWarpMultiplier / (2 * math.pi) * 4)
+// 			// 	/ 4 + 1
+// 			// ) * scale
+// 		);
+// satPart.Position = satellite.trajectory.calculateStateFromTime(universe.globalTime)
+// 	.getKinematic().getAbsolutePosition().add(Earth.calculateState(universe.globalTime)
+// 	.trajectoryState.getKinematic().getAbsolutePosition().negate()).mul(startScale).toVector3();
 
-// let function makeSOIFor(GBody: Modules.GravityBody)
-// 	let SOI = new Instance("Part")
-// 	SOI.Shape = Enum.PartType.Ball
-// 	SOI.BrickColor = BrickColor.new("Steel blue")
-// 	SOI.CanCollide = false
-// 	SOI.Anchored = false
-// 	SOI.Transparency = 0.8
-// 	SOI.Material = Enum.Material.ForceField
+// // 	} else {
+// // 		const offsetAndScale = anim.draw(universe.globalTime);
+// // satPart.Position = satellite.trajectory.calculateStateFromTime(universe.globalTime)
+// // 	.getKinematic().getAbsolutePosition().add(offsetAndScale[0]).mul(offsetAndScale[1]).toVector3();
+// // 	}
+// 	debug.profileend();
+// });
 
-// 	SOI.Name = GBody.RootPart.Name .. "SOI"
-// 	SOI.Size = (Vector3D.one * GBody.SOIRadius * 2 * Globals.solarSystemScale):ToVector3()
-// 	SOI.Position = GBody.RootPart.Position
-// 	SOI.Parent = GBody.RootPart
+// /*
+//  =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+// = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+// ======================================================= Old Rendering Loop =======================================================
+//  = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+//   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
+// */
 
-// 	let w1: WeldConstraint = new Instance("WeldConstraint")
-// 	w1.Part0 = SOI
-// 	w1.Part1 = GBody.RootPart
-// 	w1.Parent = w1.Part0
-// end
+// // const player: Player = game.GetService("Players").LocalPlayer;
 
-// makeSOIFor(Sun)
-// makeSOIFor(Mercury)
-// makeSOIFor(Venus)
-// makeSOIFor(Mars)
-// makeSOIFor(Earth)
-// makeSOIFor(Moon)
+// // const Frame = player.WaitForChild("PlayerGui").WaitForChild("ScreenGui").WaitForChild("Frame");
+// // let lastdVX = -1;
+// // let lastdVY = -1;
+// // let lastdVZ = -1;
+// // let lastTimeRange = -1;
 
-// let OrbitLineResolution: number = 20
+// // // main game physics + input loop
 
-// Mercury.Trajectory:DisplayTrajectory(Mercury.Trajectory.Orbit:OrbitalPeriod() / OrbitLineResolution, OrbitLineResolution)
-// Venus.Trajectory:DisplayTrajectory(Venus.Trajectory.Orbit:OrbitalPeriod() / OrbitLineResolution, OrbitLineResolution)
-// Earth.Trajectory:DisplayTrajectory(Earth.Trajectory.Orbit:OrbitalPeriod() / OrbitLineResolution, OrbitLineResolution)
-// Mars.Trajectory:DisplayTrajectory(Mars.Trajectory.Orbit:OrbitalPeriod() / OrbitLineResolution, OrbitLineResolution)
-// Moon.Trajectory:DisplayTrajectory(Moon.Trajectory.Orbit:OrbitalPeriod() / OrbitLineResolution, OrbitLineResolution)
-// let SatTraj = Satellite.TrajectoryHolder:DisplayTrajectory(OrbitLineResolution)
+// // // let displayTrajectoryTask: thread | undefined;
+// // game.GetService("RunService").PreSimulation.Connect((deltaTime: number) => {
+// // 	const newdVX = Frame.GetAttribute("dVX") as number;
+// // 	const newdVY = Frame.GetAttribute("dVY") as number;
+// // 	const newdVZ = Frame.GetAttribute("dVZ") as number;
+// // 	trajectoryDisplayDuration = Frame.GetAttribute("timeRange") as number;
+// // 	if (lastdVX !== newdVX || lastdVY !== newdVY || lastdVZ !== newdVZ || lastTimeRange !== trajectoryDisplayDuration) {
+// // 		// redo trajectory lines
+// // 		if (sTrajectory) sTrajectory.Destroy();
 
-// print("trajectories finished")
+// // 		if (lastdVX !== newdVX || lastdVY !== newdVY || lastdVZ !== newdVZ) {
+// // 			satellite = new PhysicsCelestial(
+// // 				"satellite",
+// // 				new Vector3D(0, 0, 1e7),
+// // 				new Vector3D(newdVX, newdVY, newdVZ),
+// // 				universe.globalTime,
+// // 				Moon
+// // 			);
+// // 		}
+// // 		// if (displayTrajectoryTask) task.cancel(displayTrajectoryTask);
+// // 		// displayTrajectoryTask = task.defer(() => {
+// // 			sTrajectory = satellite.trajectory.displayTrajectory(trajectoryDisplayDuration / OrbitLineResolution, OrbitLineResolution, 1)//.expect();
+// // 		// });
 
-// let timePassed = 0
-// let timeWarpMultiplier = 9000
+// // 		lastdVX = newdVX;
+// // 		lastdVY = newdVY;
+// // 		lastdVZ = newdVZ;
+// // 		lastTimeRange = trajectoryDisplayDuration;
+// // 	}
 
-// let data = {}
-// let prevData = Moon.Position
-
-// let player = game:GetService("Players").LocalPlayer
-// let Frame = player.PlayerGui:WaitForChild("ScreenGui").Frame
-// let lastXms = Frame:GetAttribute("msX")
-// let lastYms = Frame:GetAttribute("msY")
-// let lastZms = Frame:GetAttribute("msZ")
-
-// RunService.PreSimulation:Connect(function()
-// 	let newXms = Frame:GetAttribute("msX")
-// 	let newYms = Frame:GetAttribute("msY")
-// 	let newZms = Frame:GetAttribute("msZ")
-// 	if lastXms ~= newXms or lastYms ~= newYms or lastZms ~= newZms then
-// 		SatTraj:Destroy()
-// 		Satellite = SolarSystemPhysicsBody.new(
-// 			new Vector3D(0, 0, 1e7),
-// 			new Vector3D(newXms, newYms, newZms),
-// 			Satellite.RootPart,
-// 			Moon
-// 		)
-// 		SatTraj = Satellite.TrajectoryHolder:DisplayTrajectory(OrbitLineResolution)
-// 		lastXms = newXms
-// 		lastYms = newYms
-// 		lastZms = newZms
-// 	end
-// end)
-
-// Moon:Update(1)
-
-// // run with physics loop
-// // RunService.PreSimulation:Connect(function(deltaTime)
-// // 	let scaledTimePassed: number = timePassed * timeWarpMultiplier
-// // 	// print(timePassed)
-
-// // 	// print("Mercury")
-// // 	Mercury:Update(scaledTimePassed)
-// // 	// print("Venus")
-// // 	Venus:Update(scaledTimePassed)
-// // 	// print("Earth")
-// // 	Earth:Update(scaledTimePassed)
-// // 	// print("Mars")
-// // 	Mars:Update(scaledTimePassed)
-// // 	// print("Moon")
-// // 	Moon:Update(scaledTimePassed)
-// // 	// print("Satellite")
-// // 	Satellite:Update(scaledTimePassed)
-
-// // 	// for v in allGravityBodies do
-// // 	// 	v:Update(scaledTimePassed)
-// // 	// end
-// // 	timePassed += deltaTime
-
-// // 	// let newData = Moon.Trajectory:CalculatePointFromTime(scaledTimePassed).Position
-// // 	// data[#data + 1] = "(" .. table.concat(
-// // 	// 	{
-// // 	// 		timePassed,
-// // 	// 		(newData - prevData):Magnitude()
-// // 	// 	},",") .. ")"
-// // 	// prevData = newData
-// // 	// if timePassed > 4 then
-// // 	// 	error(`[{table.concat(data,",")}]`)
-// // 	// end
-// // end)
+// // 	if (Frame.GetAttribute("timeRunning") as boolean) {
+// // 		scaledTimePassed = scaledTimePassed.withIncrementTime(deltaTime * timeWarpMultiplier);
+// // 		updateUniverseState(scaledTimePassed);
+// // 	}
+// // })

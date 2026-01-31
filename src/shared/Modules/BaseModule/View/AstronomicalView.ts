@@ -60,8 +60,6 @@ export default class AstronomicalView extends View {
 		time?: TemporalState, scale: number = 1 / 500_000_000,
 		offset: Vector3D = Vector3D.zero, trajectoryWidth: number = 0.5
 	) {
-		if (scale !== undefined && scale <= 0)
-			error("GravityDisplay updateSettings() invalid argument(s)");
 		super(universe);
 
 		this.viewFolder = AstronomicalView.viewFolderBase.Clone();

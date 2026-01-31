@@ -8,6 +8,7 @@ import LinearTrajectory from "../Relative/Trajectory/LinearTrajectory";
 import OrbitalTrajectory from "../Relative/Trajectory/OrbitalTrajectory";
 import GravityState from "../Relative/CelestialState/GravityState";
 import Celestial from ".";
+import Datamap from "../Datamap";
 
 export default class GravityCelestial extends Celestial {
 	declare readonly trajectory: OrbitalTrajectory | LinearTrajectory;
@@ -22,6 +23,7 @@ export default class GravityCelestial extends Celestial {
 	// Display/Rendering characteristics
 	public readonly radius: number;
 	public readonly color: Color3;
+	public readonly heightmap: Datamap;
 
 	// Constructors
 
@@ -32,7 +34,8 @@ export default class GravityCelestial extends Celestial {
 		name: string,
 		initialPosition: Vector3D, initialVelocity: Vector3D,
 		initialTemporal: TemporalState, mass: number,
-		radius: number, color: Color3, orbiting?: GravityCelestial
+		radius: number, color: Color3, heightmap: Datamap,
+		orbiting?: GravityCelestial
 	) {
 		super(name, initialPosition, initialVelocity, initialTemporal, orbiting);
 
@@ -41,6 +44,7 @@ export default class GravityCelestial extends Celestial {
 		this.orbiting = orbiting;
 		this.radius = radius;
 		this.color = color;
+		this.heightmap = heightmap;
 
 		if (orbiting !== undefined) {
 			this.SOIRadius = (this.trajectory as OrbitalTrajectory).semiMajorAxis * (this.mass / orbiting.mass) ** (2 / 5);
