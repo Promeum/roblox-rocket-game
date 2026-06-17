@@ -1,10 +1,10 @@
 // import { $assert } from "rbxts-transform-debug";
 import Vector3D from "shared/Modules/Libraries/Vector3D";
 
-import State from ".";
-import AccelerationState from "./AccelerationState";
+import Physics from ".";
+import Acceleration from "./Acceleration";
 
-export default class KinematicState extends State {
+export default class Kinematic extends Physics {
 	public readonly position: Vector3D;
 	public readonly velocity: Vector3D;
 
@@ -16,19 +16,19 @@ export default class KinematicState extends State {
 	 * @param velocity 
 	 * @param relativeTo 
 	 */
-	public constructor(position: Vector3D, velocity: Vector3D, relativeTo?: KinematicState)
+	public constructor(position: Vector3D, velocity: Vector3D, relativeTo?: Kinematic)
 
 	/**
 	 * Clones a KinematicState instance and replaces its relativeTo.
 	 * @param kinematicState 
 	 * @param relativeTo 
 	 */
-	public constructor(kinematicState: KinematicState, relativeTo?: KinematicState)
+	public constructor(kinematicState: Kinematic, relativeTo?: Kinematic)
 
-	public constructor(arg1: Vector3D | KinematicState, arg2?: Vector3D | KinematicState, arg3?: KinematicState) {
+	public constructor(arg1: Vector3D | Kinematic, arg2?: Vector3D | Kinematic, arg3?: Kinematic) {
 		let position: Vector3D;
 		let velocity: Vector3D;
-		let relativeTo: KinematicState | undefined
+		let relativeTo: Kinematic | undefined
 
 		if (arg1 instanceof Vector3D) { // Constructor 1
 			assert(arg2 instanceof Vector3D);
@@ -36,7 +36,7 @@ export default class KinematicState extends State {
 			velocity = arg2;
 			relativeTo = arg3;
 		} else { // Constructor 2
-			assert((arg2 === undefined || arg2 instanceof KinematicState) && arg3 === undefined);
+			assert((arg2 === undefined || arg2 instanceof Kinematic) && arg3 === undefined);
 			position = arg1.position;
 			velocity = arg1.velocity;
 			relativeTo = arg2;
@@ -51,27 +51,28 @@ export default class KinematicState extends State {
 
 	// Arithmetic
 
-	public add(other: KinematicState): KinematicState {
-		assert(this.sameRelativeTree(other), "KinematicState.add() operands do not share the same relativeTree");
-		return new KinematicState(
+	public add(other: Kinematic): Kinematic {
+		// assert(this.sameRelativeTree(other), "KinematicState.add() operands do not share the same relativeTree");
+		if (this.sameRelativeTree(other)) warn("KinematicState.add() operands do not share the same relativeTree");
+		return new Kinematic(
 			this.position.add(other.position),
 			this.velocity.add(other.velocity),
-			this.getRelativeOrUndefined(),
+			this.queryRelative(),
 		);
 	}
 
-	public sub(other: KinematicState): KinematicState {
+	public sub(other: Kinematic): Kinematic {
 		assert(this.sameRelativeTree(other), "KinematicState.sub() operands do not share the same relativeTree");
-		return new KinematicState(
+		return new Kinematic(
 			this.position.sub(other.position),
 			this.velocity.sub(other.velocity),
-			this.getRelativeOrUndefined(),
+			this.queryRelative(),
 		);
 	}
 
 	// Comparisons
 
-	public equals(other?: KinematicState): other is KinematicState {
+	public equals(other?: Kinematic): other is Kinematic {
 		if (this !== undefined && other !== undefined) {
 			if (this.position.equals(other.position) && this.velocity.equals(other.velocity))
 				if (this.hasRelative() && other.hasRelative())
@@ -87,17 +88,17 @@ export default class KinematicState extends State {
 
 	// Methods
 
-	public getAbsolutePosition(): Vector3D {
+	public absolutePosition(): Vector3D {
 		if (this.hasRelative()) {
-			return this.position.add(this.getRelative().getAbsolutePosition());
+			return this.position.add(this.getRelative().absolutePosition());
 		} else {
 			return this.position;
 		}
 	}
 
-	public getAbsoluteVelocity(): Vector3D {
+	public absoluteVelocity(): Vector3D {
 		if (this.hasRelative()) {
-			return this.velocity.add(this.getRelative().getAbsoluteVelocity());
+			return this.velocity.add(this.getRelative().absoluteVelocity());
 		} else {
 			return this.velocity;
 		}
@@ -110,36 +111,36 @@ export default class KinematicState extends State {
 	 * @param acceleration Optionally applies acceleration over delta.
 	 * @returns A new AccelerationState, with all of its relatives also changed.
 	 */
-	public step(delta: number, acceleration?: AccelerationState): KinematicState {
+	public step(delta: number, acceleration?: Acceleration): Kinematic {
 		const newVelocity: Vector3D = this.velocity;
 		const newPosition: Vector3D = this.position;
 
 		if (acceleration !== undefined)
-			newVelocity.add(acceleration.getAccelerationVector(delta));
+			newVelocity.add(acceleration.vector(delta));
 		newPosition.add(newVelocity.mul(delta));
 
-		return new KinematicState(
+		return new Kinematic(
 			newPosition,
 			newVelocity,
 			this.getRelative().step(delta)
 		);
 	}
 
-	public getAbsolute(): KinematicState {
-		return new KinematicState(this.getAbsolutePosition(), this.getAbsoluteVelocity());
+	public absolute(): Kinematic {
+		return new Kinematic(this.absolutePosition(), this.absoluteVelocity());
 	}
 
-	public consolidateOnce(): KinematicState {
+	public consolidate(): Kinematic {
 		assert(this.hasRelative(), "consolidateOnce() cannot be called on a KinematicState with no relativeTo");
-		const relativeTo = this.getRelative();
-		return new KinematicState(
-			this.position.add(relativeTo.position),
-			this.velocity.add(relativeTo.velocity),
-			relativeTo.getRelativeOrUndefined(),
+		const relative = this.getRelative();
+		return new Kinematic(
+			this.position.add(relative.position),
+			this.velocity.add(relative.velocity),
+			relative.queryRelative(),
 		);
 	}
 
-	public synchronize(other: KinematicState): [KinematicState, KinematicState] {
+	public synchronize(other: Kinematic): [Kinematic, Kinematic] {
 		const selfTree = this.getRelativeTree();
 		let selfTrimmedPosition = Vector3D.zero;
 		let selfTrimmedVelocity = Vector3D.zero;
@@ -158,30 +159,30 @@ export default class KinematicState extends State {
 			otherTrimmedVelocity = otherTrimmedVelocity.add(otherTree[i].velocity);
 		}
 
-		const convergenceItem = this.convergenceItem(other) ?? new KinematicState(Vector3D.zero, Vector3D.zero);
+		const convergenceItem = this.convergenceItem(other) ?? new Kinematic(Vector3D.zero, Vector3D.zero);
 
-		const selfResult = new KinematicState(
+		const selfResult = new Kinematic(
 			convergenceItem.position.add(selfTrimmedPosition),
 			convergenceItem.velocity.add(selfTrimmedVelocity),
 		);
-		const otherResult = new KinematicState(
+		const otherResult = new Kinematic(
 			convergenceItem.position.add(otherTrimmedPosition),
 			convergenceItem.velocity.add(otherTrimmedVelocity),
 		);
 
 		assert(
-			selfResult.getRelativeOrUndefined() === otherResult.getRelativeOrUndefined() &&
-				this.getAbsolutePosition().equals(selfResult.getAbsolutePosition()) &&
-				this.getAbsoluteVelocity().equals(selfResult.getAbsoluteVelocity()) &&
-				other.getAbsolutePosition().equals(otherResult.getAbsolutePosition()) &&
-				other.getAbsoluteVelocity().equals(otherResult.getAbsoluteVelocity()),
+			selfResult.queryRelative() === otherResult.queryRelative() &&
+				this.absolutePosition().equals(selfResult.absolutePosition()) &&
+				this.absoluteVelocity().equals(selfResult.absoluteVelocity()) &&
+				other.absolutePosition().equals(otherResult.absolutePosition()) &&
+				other.absoluteVelocity().equals(otherResult.absoluteVelocity()),
 			"something wrong in the calcs!",
 		);
 
 		return [selfResult, otherResult];
 	}
 
-	public matchRelative(other: KinematicState): KinematicState {
+	public matchRelative(other: Kinematic): Kinematic {
 		const otherTree = other.getRelativeTree();
 		let otherTrimmedPosition = Vector3D.zero;
 		let otherTrimmedVelocity = Vector3D.zero;
@@ -191,7 +192,7 @@ export default class KinematicState extends State {
 			otherTrimmedVelocity = otherTrimmedVelocity.add(otherTree[i].velocity);
 		}
 
-		const convergenceItem = this.convergenceItem(other) ?? new KinematicState(Vector3D.zero, Vector3D.zero);
+		const convergenceItem = this.convergenceItem(other) ?? new Kinematic(Vector3D.zero, Vector3D.zero);
 		const selfRelativeTree = this.getRelativeTree();
 
 		let resultPositionLeftover = convergenceItem.position.add(otherTrimmedPosition);
@@ -202,12 +203,12 @@ export default class KinematicState extends State {
 			resultVelocityLeftover = resultVelocityLeftover.sub(selfRelativeTree[i].velocity);
 		}
 
-		const result = new KinematicState(resultPositionLeftover, resultVelocityLeftover, this.getRelativeOrUndefined());
+		const result = new Kinematic(resultPositionLeftover, resultVelocityLeftover, this.queryRelative());
 
 		assert(
-			this.getRelativeOrUndefined() === result.getRelativeOrUndefined() &&
-				other.getAbsolutePosition().equals(result.getAbsolutePosition()) &&
-				other.getAbsoluteVelocity().equals(result.getAbsoluteVelocity()),
+			this.queryRelative() === result.queryRelative() &&
+				other.absolutePosition().equals(result.absolutePosition()) &&
+				other.absoluteVelocity().equals(result.absoluteVelocity()),
 			"something wrong in the calcs!",
 		);
 
@@ -216,27 +217,27 @@ export default class KinematicState extends State {
 
 	// Wrap super methods with current type
 
-	override convergenceIndex(other: KinematicState): number {
+	override convergenceIndex(other: Kinematic): number {
 		return super.convergenceIndex(other);
 	}
 
-	override getRelative(): KinematicState {
-		return super.getRelative() as KinematicState;
+	override getRelative(): Kinematic {
+		return super.getRelative() as Kinematic;
 	}
 
-	override getRelativeOrUndefined() : KinematicState | undefined {
-		return super.getRelativeOrUndefined() as KinematicState | undefined;
+	override queryRelative() : Kinematic | undefined {
+		return super.queryRelative() as Kinematic | undefined;
 	}
 
-	override getRelativeTree(): KinematicState[] {
-		return super.getRelativeTree() as KinematicState[];
+	override getRelativeTree(): Kinematic[] {
+		return super.getRelativeTree() as Kinematic[];
 	}
 
-	override convergenceItem(other: KinematicState): KinematicState | undefined {
-		return super.convergenceItem(other) as KinematicState | undefined;
+	override convergenceItem(other: Kinematic): Kinematic | undefined {
+		return super.convergenceItem(other) as Kinematic | undefined;
 	}
 
-	override deepClone(): KinematicState {
+	override deepClone(): Kinematic {
 		return this;
 	}
 }

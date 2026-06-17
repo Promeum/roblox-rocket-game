@@ -2,17 +2,20 @@
 import Vector3D from "shared/Modules/Libraries/Vector3D";
 
 import BaseModule from "..";
-import TemporalState from "../Relative/State/TemporalState";
+import Chrono from "../Chrono";
 import Trajectory from "../Relative/Trajectory";
 import OrbitalTrajectory from "../Relative/Trajectory/OrbitalTrajectory";
 import LinearTrajectory from "../Relative/Trajectory/LinearTrajectory";
+import CelestialState from "../Relative/CelestialState";
 
 import type GravityCelestial from "./GravityCelestial";
-import CelestialState from "../Relative/CelestialState";
+import type Universe from "../Universe";
 
 export default abstract class Celestial extends BaseModule {
 	public readonly name: string;
-	public trajectory!: Trajectory;
+	public universe!: Universe;
+	public trajectory: Trajectory;
+	public state!: CelestialState;
 
 	// Constructors
 
@@ -24,23 +27,18 @@ export default abstract class Celestial extends BaseModule {
 		name: string,
 		initialPosition: Vector3D,
 		initialVelocity: Vector3D,
-		initialTemporal: TemporalState,
+		initialChrono: Chrono,
 		orbiting?: GravityCelestial
 	) {
 		super();
 
 		if (orbiting !== undefined) {
 			this.trajectory = new OrbitalTrajectory(
-				initialPosition,
-				initialVelocity,
-				initialTemporal,
-				orbiting
+				initialPosition, initialVelocity, initialChrono, orbiting
 			);
 		} else {
 			this.trajectory = new LinearTrajectory(
-				initialPosition,
-				initialVelocity,
-				initialTemporal
+				initialPosition, initialVelocity, initialChrono
 			);
 		}
 
@@ -50,15 +48,19 @@ export default abstract class Celestial extends BaseModule {
 	// Methods
 
 	/**
+	 * Retrives the state at given time.
+	 * @param chrono The given time.
+	 * @returns A CelestialState.
+	 */
+	public abstract calculateState(chrono: Chrono): CelestialState;
+
+	/**
 	 * Updates the current state with a given time.
-	 * @param temporalState The given time.
+	 * @param chrono The given time.
 	 * @returns The new, updated CelestialState.
 	 */
-	public calculateState(temporalState: TemporalState): CelestialState {
-		return new CelestialState(
-			this,
-			this.trajectory.calculateStateFromTime(temporalState)
-		);
+	public setState(chrono: Chrono): CelestialState {
+		return this.state = this.calculateState(chrono);
 	}
 
 	abstract override deepClone(): Celestial

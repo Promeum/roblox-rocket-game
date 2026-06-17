@@ -15,7 +15,11 @@
 		"moduleDetection": "force",
 		"strict": true,
 		"target": "ESNext",
-		"typeRoots": ["node_modules/@rbxts"],
+
+		// fix for broken `npm init roblox-ts` config
+		"typeRoots": ["./node_modules/@rbxts"],
+		"types": ["types"],
+		"skipLibCheck": true,
 
 		// configurable
 		"rootDir": "src",

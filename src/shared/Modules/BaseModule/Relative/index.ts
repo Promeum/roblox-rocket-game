@@ -6,7 +6,7 @@ import BaseModule from "..";
  * Immutable. Abstract.
  */
 export default abstract class Relative extends BaseModule {
-	private relativeTo: Relative | undefined;
+	protected relativeTo: Relative | undefined;
 
 	/**
 	 * Creates a new Relative instance.
@@ -35,7 +35,7 @@ export default abstract class Relative extends BaseModule {
 			error(`Relative getRelative() Cannot call getRelative() on a Relative with no relativeTo`);
 	}
 
-	public getRelativeOrUndefined(): Relative | undefined {
+	public queryRelative(): Relative | undefined {
 		if (this === this.relativeTo) error("Relative is relative to itself");
 		return this.relativeTo;
 	}
@@ -53,7 +53,7 @@ export default abstract class Relative extends BaseModule {
 		let relative: Relative | undefined = this;
 		while (relative !== undefined) {
 			resultTree.push(relative);
-			relative = relative.getRelativeOrUndefined();
+			relative = relative.queryRelative();
 		}
 
 		return resultTree;
@@ -97,7 +97,7 @@ export default abstract class Relative extends BaseModule {
 		while (otherRelative !== undefined) {
 			if (thisRelativeTree.find((relative: Relative) => otherRelative!.equals(relative)))
 				return otherRelative;
-			otherRelative = otherRelative.getRelativeOrUndefined();
+			otherRelative = otherRelative.queryRelative();
 		}
 
 		return undefined;

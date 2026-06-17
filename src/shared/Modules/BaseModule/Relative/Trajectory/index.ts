@@ -3,9 +3,9 @@ import Vector3D from "shared/Modules/Libraries/Vector3D";
 // import Thread from "shared/Modules/Libraries/Thread";
 
 import Relative from "..";
-import TemporalState from "../State/TemporalState";
-import AccelerationState from "../State/AccelerationState";
-import KinematicTemporalState from "../State/KinematicTemporalState";
+import Chrono from "../../Chrono";
+import Acceleration from "../Physics/Acceleration";
+import KinematicChrono from "../Physics/KinematicChrono";
 import TrajectoryState from "../TrajectoryState";
 
 /**
@@ -17,17 +17,17 @@ export default abstract class Trajectory extends Relative {
 	// Position Calculations
 
 	/**
-	 * Calculates a position as a KinematicTemporalState.
+	 * Calculates a position as a KinematicChrono.
 	 */
-	public abstract getKinematic(time: TemporalState | number): KinematicTemporalState
+	public abstract getKinematic(time: Chrono | number): KinematicChrono
 
 	// /**
-	//  * Retrieves this position as a KinematicTemporalState.
+	//  * Retrieves this position as a KinematicChrono.
 	//  * @param depth Positive integer to specify how many relative
 	//  * TrajectoryStates should be calculated (to eliminate redundant
 	//  * calculations). Omit for maximum depth.
 	//  */
-	// public abstract getKinematic(time: number, depth?: number): KinematicTemporalState
+	// public abstract getKinematic(time: number, depth?: number): KinematicChrono
 
 	/**
 	 * Calculates a CelestialState from a time.
@@ -35,7 +35,7 @@ export default abstract class Trajectory extends Relative {
 	 * @param time The time relative to this trajectory
 	 * @returns The CelestialState at that time
 	 */
-	public abstract calculateStateFromTime(time: TemporalState | number): TrajectoryState
+	public abstract calculateStateFromTime(time: Chrono | number): TrajectoryState
 
 	/**
 	 * Calculates the closest approach to position.
@@ -84,7 +84,14 @@ export default abstract class Trajectory extends Relative {
 	 * @param withAcceleration Adds an acceleration to this Trajectory, modifying the trajectory
 	 * @returns The incremented trajectory
 	 */
-	public abstract atTime(delta: number, withAcceleration?: AccelerationState): Trajectory
+	public abstract atTime(delta: number, withAcceleration?: Acceleration): Trajectory
+
+	/**
+	 * Adds instantaneous velocity to the trajectory.
+	 * @param velocity The change in velocity.
+	 * @returns A new adjusted trajectory
+	 */
+	public abstract changeVelocity(currentTime: Chrono, velocity: Vector3D): Trajectory
 
 	// calculatePoints
 
@@ -94,8 +101,8 @@ export default abstract class Trajectory extends Relative {
 	 * @returns An array of CelestialStates
 	 */
 	public abstract calculatePoints(
-		startTime: TemporalState | number,
-		endTime: TemporalState | number,
+		startTime: Chrono | number,
+		endTime: Chrono | number,
 		recursions: number
 	): TrajectoryState[];
 
@@ -126,7 +133,7 @@ export default abstract class Trajectory extends Relative {
 	 * @returns An array of CelestialStates
 	 */
 	public abstract calculatePointsAsync(
-		startTime: TemporalState | number, endTime: TemporalState | number,
+		startTime: Chrono | number, endTime: Chrono | number,
 		recursions: number, batchSize?: number
 	): Promise<TrajectoryState[]>;
 
@@ -171,12 +178,15 @@ export default abstract class Trajectory extends Relative {
 
 	// Internal utility methods
 
-	/** Ensures input is relativeTime */
-	protected asRelativeTime(time: TemporalState | number): number {;
+	/**
+	 * Ensures input is relativeTime.
+	 * @param time Chronos are assumed to be absolute
+	 */
+	protected asRelativeTime(time: Chrono | number): number {;
 		if (typeIs(time, "number"))
 			return time;
 		else
-			return this.start.time.matchRelative(time).relativeTime;
+			return time.compare(this.start.time);
 	}
 
 	// Superclass return type overrides
@@ -185,8 +195,8 @@ export default abstract class Trajectory extends Relative {
 		return super.getRelative() as Trajectory;
 	}
 
-	override getRelativeOrUndefined(): Trajectory | undefined {
-		return super.getRelativeOrUndefined() as Trajectory | undefined;
+	override queryRelative(): Trajectory | undefined {
+		return super.queryRelative() as Trajectory | undefined;
 	}
 
 	override getRelativeTree(): Trajectory[] {

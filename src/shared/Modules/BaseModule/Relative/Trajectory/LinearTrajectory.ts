@@ -1,9 +1,9 @@
 import Vector3D from "../../../Libraries/Vector3D";
 
-import KinematicState from "../State/KinematicState";
-import TemporalState from "../State/TemporalState";
-import AccelerationState from "../State/AccelerationState";
-import KinematicTemporalState from "../State/KinematicTemporalState";
+import Kinematic from "../Physics/Kinematic";
+import Chrono from "../../Chrono";
+import Acceleration from "../Physics/Acceleration";
+import KinematicChrono from "../Physics/KinematicChrono";
 import LinearState from "../TrajectoryState/LinearState";
 import Trajectory from ".";
 
@@ -25,61 +25,62 @@ export default class LinearTrajectory extends Trajectory {
 	/**
 	 * Creates a new LinearTrajectory instance.
 	 */
-	public constructor(position: KinematicTemporalState);
+	public constructor(position: KinematicChrono);
 
 	/**
 	 * Creates a new LinearTrajectory instance.
 	 */
-	public constructor(position: Vector3D, velocity: Vector3D, temporal: TemporalState);
+	public constructor(position: Vector3D, velocity: Vector3D, temporal: Chrono);
 
 	public constructor(
-		arg1: LinearState | KinematicTemporalState | Vector3D,
+		arg1: LinearState | KinematicChrono | Vector3D,
 		arg2?: Vector3D,
-		arg3?: TemporalState
+		arg3?: Chrono
 	) {
 		super(); // LinearTrajectory does not orbit things so has no Relative
 
 		if (arg1 instanceof LinearState) {
 			this.start = arg1;
-		} else if (arg1 instanceof KinematicTemporalState) {
+		} else if (arg1 instanceof KinematicChrono) {
 			this.start = new LinearState(
 				this,
-				arg1.temporalState,
-				arg1.kinematicState
+				arg1.chrono,
+				arg1.kinematic
 			);
 		} else {
 			assert(arg2 instanceof Vector3D && arg3)
 			this.start = new LinearState(
 				this,
 				arg3,
-				new KinematicState(arg1, arg2)
+				new Kinematic(arg1, arg2)
 			);
 		}
 	}
 
 	// Position Calculations
 
-	override getKinematic(time: TemporalState | number): KinematicTemporalState {
+	override getKinematic(time: Chrono | number): KinematicChrono {
 		const relativeTime: number = this.asRelativeTime(time);
-		return new KinematicTemporalState(
-			new KinematicState(
+		return new KinematicChrono(
+			new Kinematic(
 				this.start.kinematics.velocity.mul(relativeTime),
 				Vector3D.zero, // velocity remains unchanged
 				this.start.kinematics
 			),
-			new TemporalState(relativeTime, this.start.time)
+			this.start.time.add(relativeTime),
+			new KinematicChrono(this.start.kinematics, this.start.time)
 		);
 	}
 
-	override calculateStateFromTime(time: TemporalState | number): LinearState {
-		const start: KinematicState = this.start.kinematics;
+	override calculateStateFromTime(time: Chrono | number): LinearState {
+		const start: Kinematic = this.start.kinematics;
 		const relativeTime: number = this.asRelativeTime(time);
 
 		// Compute new state relative to this.start
 		return new LinearState(
 			this,
-			new TemporalState(relativeTime, this.start.time),
-			new KinematicState(
+			this.start.time.add(relativeTime),
+			new Kinematic(
 				start.velocity.mul(relativeTime),
 				Vector3D.zero, // velocity remains unchanged
 				start
@@ -95,15 +96,17 @@ export default class LinearTrajectory extends Trajectory {
 	 */
 	override calculateStateFromPoint(position: Vector3D): LinearState {
 		// Transform position relative to this LinearTrajectory
-		const transformedTargetPoint: Vector3D = position.sub(this.start.kinematics.position);
-		// Find magnitude of the target point as if it was already projected to the velocity vector
-		const time: number = transformedTargetPoint.dot(this.start.kinematics.velocity);
+		const transformedTarget: Vector3D = position.sub(this.start.kinematics.position);
+		// Find magnitude of the target point as if it was
+		// already projected to the velocity vector
+		const time: number = transformedTarget.dot(this.start.kinematics.velocity);
 
 		return this.calculateStateFromTime(time);
 	}
 
 	/**
-	 * Calculates the LinearState at which this LinearTrajectory will be magnitude meters away from its current position.
+	 * Calculates the LinearState at which this LinearTrajectory will be
+	 * magnitude meters away from its current position.
 	 * Note: magnitude, and calculated time, may be negative.
 	 * @param magnitude The target distance
 	 * @returns The time to reach that distance
@@ -117,25 +120,25 @@ export default class LinearTrajectory extends Trajectory {
 	// Methods
 
 	override MOID(other: LinearTrajectory): LinearState[] {
-		const startTimeS: TemporalState = this.start.time;
-		const startS: KinematicState = this.start.kinematics;
-		const startTimeO: TemporalState = other.start.time.matchRelative(startTimeS);
-		const startO: KinematicState = other.calculateStateFromTime(startTimeO.relativeTime).kinematics;
+		const thisTime: Chrono = this.start.time;
+		const thisStart: Kinematic = this.start.kinematics;
+		const otherTime: Chrono = other.start.time;
+		const otherStart: Kinematic = other.calculateStateFromTime(otherTime.sub(thisTime)).kinematics;
 
-		assert(startS.sameRelativeTree(startO), "relative trees different")
+		assert(thisStart.sameRelativeTree(otherStart), "relative trees different")
 
-		const p1: Vector3D = startS.position;
-		const p2: Vector3D = startO.position;
-		const v1: Vector3D = startS.velocity;
-		const v2: Vector3D = startO.velocity;
+		const p1: Vector3D = thisStart.position;
+		const p2: Vector3D = otherStart.position;
+		const v1: Vector3D = thisStart.velocity;
+		const v2: Vector3D = otherStart.velocity;
 
 		// time formula
-		const resultMoidTime: number = - (p1.sub(p2)).dot(v1.sub(v2)) / ((v1.sub(v2)).magnitude() ** 2);
-		const resultMoidTemporal: TemporalState = startTimeS.withRelativeTime(resultMoidTime);
+		const moidTimeRaw: number = - (p1.sub(p2)).dot(v1.sub(v2)) / ((v1.sub(v2)).magnitude() ** 2);
+		const moidTime: Chrono = thisTime.add(moidTimeRaw);
 
 		return [
-			this.calculateStateFromTime(resultMoidTime),
-			other.calculateStateFromTime(startTimeO.matchRelative(resultMoidTemporal).relativeTime)
+			this.calculateStateFromTime(moidTimeRaw),
+			other.calculateStateFromTime(moidTime.sub(otherTime))
 		];
 	}
 
@@ -149,18 +152,19 @@ export default class LinearTrajectory extends Trajectory {
 		// Kinematic problem:
 		// There exists two points, A and B, both in linear motion.
 		// Find the earliest point where A is M distance from B.
-		const selfPosition: KinematicState = this.start.kinematics;
-		const otherPosition: KinematicState = other.start.kinematics;
+		const thisKinematic: Kinematic = this.start.kinematics;
+		const otherKinematic: Kinematic = other.start.kinematics;
 
 		// distance vector relative to other
-		const distancePoint: Vector3D = otherPosition.position.sub(selfPosition.position);
-		const distanceVelocity: Vector3D = otherPosition.velocity.sub(selfPosition.velocity);
+		const relativePosition: Vector3D = otherKinematic.position.sub(thisKinematic.position);
+		const relativeVelocity: Vector3D = otherKinematic.velocity.sub(thisKinematic.velocity);
 
 		// solve for time(s) by finding roots of polynomial
+		// times are relative to this.start.time
 		const [time1, time2] = quadraticFormula(
-			distanceVelocity.dot(distanceVelocity), // coefficient 2
-			distanceVelocity.dot(distancePoint), // coefficient 1
-			distancePoint.dot(distancePoint) - distance * distance // coefficient 0
+			relativeVelocity.dot(relativeVelocity), // coefficient 2
+			relativeVelocity.dot(relativePosition), // coefficient 1
+			relativePosition.dot(relativePosition) - distance * distance // coefficient 0
 		);
 
 		// Check for NaN
@@ -175,19 +179,28 @@ export default class LinearTrajectory extends Trajectory {
 		return results;
 	}
 
-	override atTime(delta: number, withAcceleration?: AccelerationState): LinearTrajectory {
+	override atTime(delta: number, withAcceleration?: Acceleration): LinearTrajectory {
 		return new LinearTrajectory(
 			// Computed state is not relative to this.start
-			new KinematicTemporalState(
+			new KinematicChrono(
 				this.start.kinematics.step(delta, withAcceleration),
-				this.start.time.withIncrementTime(delta)
+				this.start.time.add(delta)
 			)
 		);
 	}
 
+	override changeVelocity(currentTime: Chrono, velocity: Vector3D): LinearTrajectory {
+		const state = this.calculateStateFromTime(currentTime);
+		return new LinearTrajectory(
+			state.kinematics.position,
+			state.kinematics.velocity.add(velocity),
+			state.time
+		);
+	}
+
 	override calculatePoints(
-		startTime: TemporalState | number,
-		endTime: TemporalState | number,
+		startTime: Chrono | number,
+		endTime: Chrono | number,
 		recursions: number
 	): LinearState[] {
 		return super.calculatePointsInternal(
@@ -197,7 +210,7 @@ export default class LinearTrajectory extends Trajectory {
 	}
 
 	override async calculatePointsAsync(
-		startTime: TemporalState | number, endTime: TemporalState | number,
+		startTime: Chrono | number, endTime: Chrono | number,
 		recursions: number, batchSize: number = 1000
 	): Promise<LinearState[]> {
 		return super.calculatePointsAsyncInternal(

@@ -1,6 +1,8 @@
-import KinematicState from "../State/KinematicState";
-import TemporalState from "../State/TemporalState";
-import KinematicTemporalState from "../State/KinematicTemporalState";
+import Vector3D from "shared/Modules/Libraries/Vector3D";
+
+import Kinematic from "../Physics/Kinematic";
+import Chrono from "../../Chrono";
+import KinematicChrono from "../Physics/KinematicChrono";
 import TrajectoryState from ".";
 
 import type OrbitalTrajectory from "../Trajectory/OrbitalTrajectory";
@@ -20,7 +22,9 @@ import type OrbitalTrajectory from "../Trajectory/OrbitalTrajectory";
  */
 export default class OrbitalState extends TrajectoryState {
 	declare readonly trajectory: OrbitalTrajectory;
-	private kinematics: KinematicState;
+	declare readonly kinematics: Kinematic;
+	declare readonly position: Vector3D;
+	declare readonly velocity: Vector3D;
 	// private depth: number | true = 0; // Cache
 
 	// Orbital parameters
@@ -36,39 +40,40 @@ export default class OrbitalState extends TrajectoryState {
 	/**
 	 * Creates a new OrbitalState instance.
 	 */
-	public constructor(trajectory: OrbitalTrajectory, time: TemporalState, trueAnomaly: number, position: KinematicState);
+	public constructor(trajectory: OrbitalTrajectory, time: Chrono, trueAnomaly: number, kinematics: Kinematic);
 
 	public constructor(
 		arg1: OrbitalState | OrbitalTrajectory,
-		arg2?: TemporalState,
+		arg2?: Chrono,
 		arg3?: number,
-		arg4?: KinematicState
+		arg4?: Kinematic
 	) {
 		if (arg1 instanceof OrbitalState) {
 			super(arg1);
 			this.trueAnomaly = arg1.trueAnomaly;
-			this.kinematics = arg1.kinematics;
 		} else {
 			assert(arg2 && arg3 !== undefined && arg4)
 			super(arg1, arg2);
 			this.trueAnomaly = arg3;
 			this.kinematics = arg4;
+			this.position = arg4.position;
+			this.velocity = arg4.velocity;
 		}
 	}
 
-	override getKinematic(): KinematicTemporalState {
-		return new KinematicTemporalState(this.kinematics, this.time);
+	override getKinematic(): KinematicChrono {
+		return new KinematicChrono(this.kinematics, this.time);
 	}
 
 	// /**
-	//  * Retrieves this position as a KinematicTemporalState.
+	//  * Retrieves this position as a KinematicChrono.
 	//  * Internally caches the result.
 	//  */
-	// override getKinematic(depth?: number): KinematicTemporalState {
+	// override getKinematic(depth?: number): KinematicChrono {
 	// 	if (depth !== undefined && depth < 1) error("OrbitalState getKinematic() Invalid argument(s)");
 	// 	if (this.depth === true || (depth !== undefined && depth <= this.depth)) {
 	// 		// retrieve cache
-	// 		return new KinematicTemporalState(this.kinematics!, this.time);
+	// 		return new KinematicChrono(this.kinematics!, this.time);
 	// 	} else {
 	// 		// calculate more specific kinematic and update cache
 	// 		const result = this.trajectory.getKinematic(depth);

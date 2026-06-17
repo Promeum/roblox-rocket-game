@@ -1,6 +1,8 @@
-import KinematicState from "../State/KinematicState";
-import TemporalState from "../State/TemporalState";
-import KinematicTemporalState from "../State/KinematicTemporalState";
+import Vector3D from "shared/Modules/Libraries/Vector3D";
+
+import Kinematic from "../Physics/Kinematic";
+import Chrono from "../../Chrono";
+import KinematicChrono from "../Physics/KinematicChrono";
 import TrajectoryState from ".";
 
 import type LinearTrajectory from "../Trajectory/LinearTrajectory";
@@ -13,7 +15,9 @@ import type LinearTrajectory from "../Trajectory/LinearTrajectory";
  */
 export default class LinearState extends TrajectoryState {
 	declare readonly trajectory: LinearTrajectory;
-	public readonly kinematics: KinematicState;
+	public readonly kinematics: Kinematic;
+	declare readonly position: Vector3D;
+	declare readonly velocity: Vector3D;
 
 	// Constructors
 
@@ -25,12 +29,12 @@ export default class LinearState extends TrajectoryState {
 	/**
 	 * Creates a new LinearState instance.
 	 */
-	public constructor(trajectory: LinearTrajectory, time: TemporalState, position: KinematicState);
+	public constructor(trajectory: LinearTrajectory, time: Chrono, kinematics: Kinematic);
 
 	public constructor(
 		arg1: LinearTrajectory | LinearState,
-		arg2?: TemporalState,
-		arg3?: KinematicState
+		arg2?: Chrono,
+		arg3?: Kinematic
 	) {
 		if (arg1 instanceof LinearState) {
 			super(arg1);
@@ -39,11 +43,13 @@ export default class LinearState extends TrajectoryState {
 			assert(arg2 && arg3)
 			super(arg1, arg2);
 			this.kinematics = arg3;
+			this.position = arg3.position;
+			this.velocity = arg3.velocity;
 		 }
 	}
 
-	override getKinematic(): KinematicTemporalState {
-		return new KinematicTemporalState(this.kinematics, this.time);
+	override getKinematic(): KinematicChrono {
+		return new KinematicChrono(this.kinematics, this.time);
 	}
 
 	override equals(other?: LinearState): other is LinearState {

@@ -10,7 +10,7 @@ import GravityCelestial from "../../Celestial/GravityCelestial";
  */
 export default class PhysicsState extends CelestialState {
     declare readonly celestial: PhysicsCelestial;
-    declare readonly trajectoryState: LinearState | OrbitalState;
+    declare readonly physics: LinearState | OrbitalState;
     public readonly orbiting: GravityCelestial;
 
     // Constructors
@@ -21,7 +21,7 @@ export default class PhysicsState extends CelestialState {
     public constructor(state: PhysicsState);
 
     /**
-     * Creates a new PhysicsState instance from a KinematicTemporalState.
+     * Creates a new PhysicsState instance from a TrajectoryState.
      */
     public constructor(celestial: PhysicsCelestial, trajectoryState: LinearState | OrbitalState, orbiting: GravityCelestial);
 

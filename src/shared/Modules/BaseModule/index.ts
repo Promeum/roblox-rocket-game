@@ -18,11 +18,13 @@ export default abstract class BaseModule {
         const startpart: Part = new Instance("Part");
         startpart.Name = name;
         startpart.Anchored = true;
+        startpart.CanCollide = false;
         startpart.Size = size.toVector3();
         startpart.Shape = shape ?? Enum.PartType.Block;
         startpart.Material = Enum.Material.Neon;
         startpart.Color = color;
         startpart.Position = position.toVector3();
         startpart.Parent = parent;
+        return startpart;
     }
 }

@@ -5,3 +5,7 @@
 *.rbxl
 *.lock
 main.client.ts.txt
+src/shared/Modules/BaseModule/Display/TerrainDisplay/TerrainDisplay_OLD.ts
+src/shared/Modules/BaseModule/Display/TerrainDisplay/Tetra_OLD.ts
+src/.stfolder
+src/.stversions
