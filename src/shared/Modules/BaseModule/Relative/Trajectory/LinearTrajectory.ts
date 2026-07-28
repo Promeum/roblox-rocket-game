@@ -218,12 +218,6 @@ export default class LinearTrajectory extends Trajectory {
 			recursions, batchSize, x => this.calculateStateFromTime(x)
 		) as Promise<LinearState[]>;
 	}
-
-	override deepClone(): LinearTrajectory {
-		return new LinearTrajectory(
-			this.start.getKinematic()
-		);
-	}
 }
 
 /**

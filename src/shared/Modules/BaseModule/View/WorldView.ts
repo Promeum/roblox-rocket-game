@@ -2,7 +2,7 @@ import Vector3D from "shared/Modules/Libraries/Vector3D";
 
 import Chrono from "../Chrono";
 import GravityCelestial from "../Celestial/GravityCelestial";
-import Universe from "../Universe";
+import UniverseInstance from "../UniverseInstance";
 import View from ".";
 import CompositeTrajectoryDisplay from "../Display/CompositeTrajectoryDisplay";
 import TerrainDisplay from "../Display/TerrainDisplay";
@@ -36,7 +36,7 @@ export default class WorldView extends View {
 	// Constructor
 
 	public constructor(
-		universe: Universe, gravityCelestial: GravityCelestial,
+		universe: UniverseInstance, gravityCelestial: GravityCelestial,
 		scale: number = 1 / 500_000_000, offset: Vector3D = Vector3D.zero
 	) {
 		// temp hardcoded variables
@@ -96,11 +96,5 @@ export default class WorldView extends View {
 		if (offset) this.offset = offset;
 
 		this.terrainDisplay.updateSettings(scale, offset);
-	}
-
-	// Utility methods
-
-	override deepClone(): WorldView {
-		error("WorldView deepClone() Method disabled")
 	}
 }

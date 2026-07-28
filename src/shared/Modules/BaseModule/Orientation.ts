@@ -108,9 +108,4 @@ export default class Orientation extends BaseModule {
 		// 	matrix[2][0] * vector.X + matrix[2][1] * vector.Y + matrix[2][2] * vector.Z
 		// )
 	}
-
-	public deepClone(): Orientation {
-		error("Orientation deepClone() Method disabled");
-	}
-	
 }

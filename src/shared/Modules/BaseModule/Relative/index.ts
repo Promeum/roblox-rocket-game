@@ -110,6 +110,4 @@ export default abstract class Relative extends BaseModule {
 	public equals(other?: Relative): other is Relative {
 		return super.equals(other) && this.sameRelativeTree(other);
 	}
-
-	public abstract deepClone(): Relative
 }

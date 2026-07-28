@@ -128,10 +128,6 @@ export default class KinematicChrono extends Physics {
 			   this.chrono.equals(other.chrono);
 	}
 
-	override deepClone(): KinematicChrono {
-		return this;
-	}
-
 	// Supermethods
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars

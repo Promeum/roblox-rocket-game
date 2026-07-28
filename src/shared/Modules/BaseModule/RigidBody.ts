@@ -1,23 +1,19 @@
 import Vector3D from "shared/Modules/Libraries/Vector3D";
-
 import BaseModule from ".";
 
-import type CraftPart from "./CraftPart";
-
 export default class RigidBody extends BaseModule {
-	public craftPart!: CraftPart;
     /** Contains `canCollide=true` parts */
-    public readonly collisionModel: Model;
+    readonly collisionModel: Model;
     /** Part within `collisionModel` for kinematics handling */
-    public readonly part: BasePart;
+    readonly part: BasePart;
 
     // Constructors
 
-    public constructor(collisionModel: Model) {
+    constructor(collisionModel: Model) {
         super();
 
         this.collisionModel = collisionModel;
-        this.part = collisionModel.PrimaryPart!;
+        this.part = collisionModel.PrimaryPart ?? error(`collisionModel has no PrimaryPart (is ${collisionModel.PrimaryPart})`);
     }
 
     // Methods
@@ -26,7 +22,7 @@ export default class RigidBody extends BaseModule {
      * Apply gravitational forces to the internal `Part`.
 	 * @param impulse Velocity to be added to current
      */
-    public preSimulation(impulse: Vector3D): void {
+    preSimulation(impulse: Vector3D): void {
 		const newVelocity = impulse.add(this.part.AssemblyLinearVelocity).toVector3();
 		this.part.AssemblyLinearVelocity = newVelocity;
     }
@@ -35,11 +31,7 @@ export default class RigidBody extends BaseModule {
 	 * 
 	 * @returns The RigidBody's linear velocity.
 	 */
-	public postSimulation(): Vector3D {
+	postSimulation(): Vector3D {
 		return Vector3D.fromVector3(this.part.AssemblyLinearVelocity);
 	}
-
-    override deepClone(): RigidBody {
-        return this;
-    }
 }

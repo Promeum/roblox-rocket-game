@@ -4,15 +4,20 @@ import Datamap from "shared/Modules/BaseModule/Datamap";
 import Chrono from "shared/Modules/BaseModule/Chrono";
 import GravityCelestial from "shared/Modules/BaseModule/Celestial/GravityCelestial";
 import PhysicsCelestial from "shared/Modules/BaseModule/Celestial/PhysicsCelestial";
-import UniverseInstance from "shared/Modules/BaseModule/Universe/UniverseInstance";
+import UniverseInstance from "shared/Modules/BaseModule/UniverseInstance";
 import WorldView from "shared/Modules/BaseModule/View/WorldView";
 import Craft from "shared/Modules/BaseModule/Craft";
 import CraftPart from "shared/Modules/BaseModule/CraftPart";
-
-// import PlanetP1Datamaps from "shared/Assets/PlanetP1/datamaps.json";
-import EarthDatamaps from "shared/Assets/Earth/datamaps.json";
 import RigidBody from "shared/Modules/BaseModule/RigidBody";
 import ViewCamera from "shared/Modules/BaseModule/ViewCamera";
+import Serialization from "shared/Modules/BaseModule/Serialization";
+import ModuleState from "shared/Modules/BaseModule/CraftModule/ModuleState";
+
+// import PlanetP1Datamaps from "shared/Assets/PlanetP1/datamaps.json";
+import EarthDatamaps from "shared/Assets/PlanetData/Earth/datamaps.json";
+import Container from "shared/Modules/BaseModule/CraftModule/Container";
+import RESOURCES from "shared/Modules/BaseModule/Resource";
+import Flow from "shared/Modules/BaseModule/CraftModule/Flow";
 
 print("== setup start ==")
 const setupStartTime = os.clock();
@@ -44,43 +49,54 @@ game.Workspace.Gravity = 0;
 // const start = new Vector3D(-3482814, 4398475.5, 3043608.75).mul(1.0000)//.mul(0.998423)//.negate()
 const start = new Vector3D(-3482814, 4398475.5, 3043608.75).mul(1.016614)//.mul(1.016612)
 
-// Satellite Setup
-// satellite (a PhysicsCelestial) needs manual setup
+// Rocketship Setup
 
-const satCollisionModel = new Instance("Model");
-satCollisionModel.Name = "Satellite RigidBody";
+const nosecone = CraftPart.make("Probe Nosecone");
+const fueltank = CraftPart.make("Fuel Tank");
+const rocketengine = CraftPart.make("Rocket Engine");
 
-const satPart: Part = new Instance("Part");
-
-satPart.Shape = Enum.PartType.Block;
-// satPart.Anchored = true;
-satPart.Material = Enum.Material.Neon;
-satPart.Name = "satPart";
-satPart.Color = new BrickColor("Fire Yellow").Color;
-satPart.Size = new Vector3(1, 2, 1);
-
-// satPart.Parent = game.Workspace;
-satPart.Parent = satCollisionModel;
-satCollisionModel.PrimaryPart = satPart;
-
-satCollisionModel.Parent = game.Workspace;
-
-const satellite = new PhysicsCelestial(
-	"Satellite",
+const rocketship = new PhysicsCelestial(
+	"Rocketship",
 	// new Vector3D(-3482814, 4398475.5, 3043608.75).mul(0.998423).negate(),
 	start,
 	new Vector3D(-19, 3, 1.2), // new Vector3D(920, 300, 100),
 	Chrono.zero, [Earth],
-	new Craft(new CraftPart(undefined, [], new RigidBody(satCollisionModel))),
+	new Craft(
+		nosecone.addChild(
+			nosecone.getConnectionPoint("Bottom"),
+			fueltank.getConnectionPoint("Top"),
+			fueltank.addChild(
+				fueltank.getConnectionPoint("Bottom"),
+				rocketengine.getConnectionPoint("Top"),
+				rocketengine
+			)
+		)
+	),
 	Earth
 );
+
+const weldfolder = new Instance("Folder");
+weldfolder.Name = "Welds";
+rocketship.flyingObject.allParts().map(p => p.getChildWelds()).reduce((a,c) => [...a, ...c])
+	.forEach(weld => {
+		weld.Parent = weldfolder;
+	}
+);
+
+const rocketfolder = new Instance("Folder");
+rocketfolder.Name = "Rocketship";
+for (const model of [nosecone.model, fueltank.model, rocketengine.model])
+	model.Parent = rocketfolder;
+
+weldfolder.Parent = rocketfolder;
+rocketfolder.Parent = game.Workspace;
 
 // Solar System Setup Complete
 
 const universe: UniverseInstance = new UniverseInstance(
 	Chrono.zero,
 	[Earth],
-	[satellite]
+	[rocketship]
 );
 
 print("instantiate WorldView")
@@ -95,30 +111,30 @@ const view: WorldView = new WorldView(
 	start.negate()
 );
 
-print(`fin @ ${os.clock() - worldViewInstantiateStartTime} seconds`)
+print(`	fin @ ${os.clock() - worldViewInstantiateStartTime} seconds`)
 
 print("parent WorldView to Workspace")
 const worldViewParentStartTime = os.clock();
 
 view.viewFolder.Parent = game.Workspace;
 
-print(`fin @ ${os.clock() - worldViewParentStartTime} seconds`)
+print(`	fin @ ${os.clock() - worldViewParentStartTime} seconds`)
 
 // final rendering preparations
 
 const timeWarpMultiplier = 1//200//20_000;
-universe.advanceGlobalTime(0);
-satellite.setPhysicsMode("physics");
+universe.preSimulation(0);
+rocketship.setPhysicsMode("physics");
 
 game.GetService("Lighting").OutdoorAmbient = new Color3(.4, .4, .4)
-const camera = new ViewCamera(view, satPart);
+const camera = new ViewCamera(view, nosecone.model.PrimaryPart!);
 
 print("view.draw()")
 const worldViewDrawCallStartTime = os.clock();
 
 view.draw(); // Globe Visualization
 
-print(`fin @ ${os.clock() - worldViewDrawCallStartTime} seconds`)
+print(`	fin @ ${os.clock() - worldViewDrawCallStartTime} seconds`)
 
 print(`== fin @ ${os.clock() - setupStartTime} seconds ==`)
 
@@ -138,20 +154,15 @@ game.GetService("RunService").BindToRenderStep("After Camera",
 	camera.update(dt);
 });
 
-// while (true) {task.wait(3)
-// 	const deltaTime = 3;
 game.GetService("RunService").PreSimulation.Connect((deltaTime: number) => {
 	debug.profilebegin("Render + Physics loop");
 
 	// Physics loop testing (disable render loop)
 
-	camera.setNormal(satellite.state.position);
-	universe.advanceGlobalTime(deltaTime * timeWarpMultiplier);
+	camera.setNormal(rocketship.state.position);
+	universe.preSimulation(deltaTime * timeWarpMultiplier);
 
 	// Animation loop testing (disable physics loop)
-
-// satPart.Position = satellite.trajectory.calculateStateFromTime(universe.time)
-// 	.getKinematic().position.sub(start).mul(startScale).toVector3();
 
 // 	view.draw(
 // // scale
@@ -169,9 +180,27 @@ game.GetService("RunService").PreSimulation.Connect((deltaTime: number) => {
 
 	debug.profileend();
 });
-// }
 
-// // PHYSICS PIPELINE BUG debug parts
+// // RESOURCE MANAGEMENT debug helper functions
+// function printResources(cont: Container) {
+// 	let result = "Container: ";
+// 	for (let i = 0; i < cont.state.resource.length; i++) {
+// 		const resource = cont.state.resource.types[i];
+// 		result += `\t${resource}: ${cont.state.resources[i]} ${RESOURCES[resource].units}`
+// 	}
+// 	return result;
+// }
+// function printFlow(f: Flow) {
+// 	let result = "Flow: ";
+// 	for (let i = 0; i < f.state.resource.length; i++) {
+// 		const resource = f.state.resource.types[i];
+// 		result += `\t${resource}: ${f.state.flow[i]} ${RESOURCES[resource].units}`
+// 	}
+// 	return result;
+// }
+// // End of debug helpers
+
+// // PHYSICS PIPELINE debug parts
 // const rp = satellite._testpart(
 // 	"RobloxPhysics", new BrickColor("Really red").Color, new Vector3D(.25,.5,2),
 // 	Vector3D.zero, game.Workspace
@@ -187,9 +216,14 @@ game.GetService("RunService").PreSimulation.Connect((deltaTime: number) => {
 // // End of debug parts
 
 game.GetService("RunService").PostSimulation.Connect((deltaTimeSim: number) => {
-    universe.postSimulation(); // TODO: Fix this
+    universe.postSimulation();
 
-// // PHYSICS PIPELINE BUG debug visualization
+// // RESOURCE MANAGEMENT debug
+// print(printResources(rocketship.flyingObject.primaryPart.connections[0].part.state.container!))
+// print(printResources(rocketship.flyingObject.primaryPart.state.container!))
+// print(printFlow(rocketship.flyingObject.primaryPart.connections[0].part.connections[0].part.state.flows[0]))
+
+// // PHYSICS PIPELINE debug visualization
 // // satellite roblox velocity
 // const rpV = satPart.AssemblyLinearVelocity
 // rp.CFrame = CFrame.lookAlong(satPart.Position.add(rpV.Unit.mul(3 + rpV.Magnitude % 3)), rpV)

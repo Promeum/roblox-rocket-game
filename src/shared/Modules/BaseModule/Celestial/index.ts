@@ -9,11 +9,11 @@ import LinearTrajectory from "../Relative/Trajectory/LinearTrajectory";
 import CelestialState from "../Relative/CelestialState";
 
 import type GravityCelestial from "./GravityCelestial";
-import type Universe from "../Universe";
+import type UniverseInstance from "../UniverseInstance";
 
 export default abstract class Celestial extends BaseModule {
 	public readonly name: string;
-	public universe!: Universe;
+	public universe!: UniverseInstance;
 	public trajectory: Trajectory;
 	public state!: CelestialState;
 
@@ -52,7 +52,7 @@ export default abstract class Celestial extends BaseModule {
 	 * @param chrono The given time.
 	 * @returns A CelestialState.
 	 */
-	public abstract calculateState(chrono: Chrono): CelestialState;
+	public abstract calculateState(chrono: Chrono): CelestialState
 
 	/**
 	 * Updates the current state with a given time.
@@ -63,5 +63,5 @@ export default abstract class Celestial extends BaseModule {
 		return this.state = this.calculateState(chrono);
 	}
 
-	abstract override deepClone(): Celestial
+	public abstract serialize(): string
 }

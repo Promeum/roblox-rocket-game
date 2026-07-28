@@ -55,8 +55,4 @@ export default class CelestialState extends Relative {
         return other !== undefined && this.celestial.equals(other.celestial)
             && this.physics.equals(other.physics);
     }
-
-    override deepClone(): CelestialState {
-        return this;
-    }
 }

@@ -15,16 +15,17 @@ import Celestial from ".";
 type trajectoryType = CompositeTrajectory<LinearTrajectory> | CompositeTrajectory<OrbitalTrajectory>;
 type physicsModeType = "rails" | "physics";
 
+/** Interface between orbital physics, the universe instance, and `Craft`/`Asteroid` */
 export default class PhysicsCelestial extends Celestial {
 	declare trajectory: trajectoryType;
 	declare state: PhysicsState;
 
-	public readonly flyingObject: Craft /* | Asteroid */;
-	public physicsMode: physicsModeType = "rails";
+	readonly flyingObject: Craft /* | Asteroid */;
+	physicsMode: physicsModeType = "rails";
 
 	// Constructors
 
-	public constructor(
+	constructor(
 		name: string,
 		initialPosition: Vector3D,
 		initialVelocity: Vector3D,
@@ -50,19 +51,21 @@ export default class PhysicsCelestial extends Celestial {
 	 * May move to `Craft` in future after implementing
 	 * multi-`CraftPart` craft physics.
 	 */
-	public setPhysicsMode(physicsMode: "rails" | "physics"): void {
+	setPhysicsMode(physicsMode: "rails" | "physics"): void {
 		this.physicsMode = physicsMode;
 		if (physicsMode === "physics") {
-			for (const craftPart of this.flyingObject.primaryPart.allChildren()) {
-				const part = craftPart.rigidBody.part;
-				// Assume orbiting is 0 velocity, will change in future
-				part.AssemblyLinearVelocity = this.state.velocity.toVector3();
+			for (const craftPart of this.flyingObject.allParts()) {
+				craftPart.rigidBodies.forEach(rb => {
+					// Assume orbiting is 0 velocity, will change in future
+					rb.part.AssemblyLinearVelocity = this.state.velocity.toVector3();
+				});
 			}
 		} else {
-			for (const craftPart of this.flyingObject.primaryPart.allChildren()) {
-				const part = craftPart.rigidBody.part;
-				part.AssemblyLinearVelocity = Vector3.zero;
-				part.AssemblyAngularVelocity = Vector3.zero;
+			for (const craftPart of this.flyingObject.allParts()) {
+				craftPart.rigidBodies.forEach(rb => {
+					rb.part.AssemblyLinearVelocity = Vector3.zero;
+					rb.part.AssemblyAngularVelocity = Vector3.zero;
+				});
 			}
 		}
 	}
@@ -81,15 +84,13 @@ export default class PhysicsCelestial extends Celestial {
 	 * Assumed that `physicsMode = "physics"` and `postSimulation()`
 	 * has been called within the current `preSimulation` step.
 	 */
-	public preSimulation(): void {
+	preSimulation(delta: number): void {
 		// assert(this.physicsMode === "physics")
-		this.flyingObject.preSimulation(this.state.velocity);
+		this.flyingObject.preSimulation(this.state.velocity, delta);
 	}
 
-	/**
-	 * Updates the trajectory with data from roblox physics.
-	 */
-	public postSimulation(): void {
+	postSimulation(): void {
+		// Updates the trajectory with data from roblox physics
 		const robloxVelocity = this.flyingObject.postSimulation();
 		const difference = robloxVelocity.sub(this.state.velocity);
 		this.trajectory = this.trajectory.changeVelocity(
@@ -102,9 +103,7 @@ export default class PhysicsCelestial extends Celestial {
 		return super.setState(chrono) as PhysicsState;
 	}
 
-// TODO: Integrate with RigidBody module, implement rails + physics system
-
-	override deepClone(): PhysicsCelestial {
-		return this;
+	override serialize(): string {
+		error("Not implemented")
 	}
 }

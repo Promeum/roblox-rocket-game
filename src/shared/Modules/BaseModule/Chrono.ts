@@ -1,5 +1,5 @@
 import BaseModule from ".";
-import UniverseInstance from "./Universe/UniverseInstance";
+import UniverseInstance from "./UniverseInstance";
 
 /**
  * Chrono class that stores time in
@@ -282,10 +282,6 @@ export default class Chrono extends BaseModule {
 	 */
 	public toString(): string {
 		return `${this.years}y ${this.days}d ${this.hours}:${this.minutes}:${this.seconds}`;
-	}
-
-	public deepClone(): Chrono {
-		return this;
 	}
 
 	// Helper methods

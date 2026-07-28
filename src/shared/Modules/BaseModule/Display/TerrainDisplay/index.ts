@@ -273,8 +273,4 @@ export default class TerrainDisplay extends Display {
 			this.startCoords = this.longLatToCoords(...this.startLongLat); // (500, 250)
 		}
 	}
-
-	override deepClone(): TerrainDisplay {
-		error("TerrainDisplay deepClone() Method disabled")
-	}
 }

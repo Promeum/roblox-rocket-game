@@ -103,10 +103,6 @@ export default class Datamap extends BaseModule {
 		return catmullRom(yPortion, xInterpRows[0], xInterpRows[1],
 						  xInterpRows[2], xInterpRows[3]);
 	}
-
-	public deepClone(): Datamap {
-		error("Datamap deepClone() Method disabled");
-	}
 }
 
 

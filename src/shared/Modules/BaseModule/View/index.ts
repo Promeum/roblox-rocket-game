@@ -1,10 +1,10 @@
 import BaseModule from "..";
-import Universe from "../Universe";
+import UniverseInstance from "../UniverseInstance";
 
 export default abstract class View extends BaseModule {
 	public readonly viewFolder: Folder = new Instance("Folder");
 
-	protected constructor(public readonly universe: Universe) {
+	protected constructor(public readonly universe: UniverseInstance) {
 		super();
 		this.viewFolder.Name = "View";
 	}
@@ -13,9 +13,5 @@ export default abstract class View extends BaseModule {
 
 	override equals(other?: View): other is View {
 		return this === other;
-	}
-
-	override deepClone(): View {
-		return this;
 	}
 }

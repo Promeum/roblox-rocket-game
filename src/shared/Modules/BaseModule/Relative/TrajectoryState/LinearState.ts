@@ -55,8 +55,4 @@ export default class LinearState extends TrajectoryState {
 	override equals(other?: LinearState): other is LinearState {
 		return super.equals(other) && this.kinematics === other.kinematics;
 	}
-
-	override deepClone(): LinearState {
-		return this;
-	}
 }

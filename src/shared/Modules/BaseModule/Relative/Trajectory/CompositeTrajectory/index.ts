@@ -235,19 +235,19 @@ if (closestSOIEntryTime !== closestSOIEntryTime) closestSOIEntryTime = false
 			this.nextDirectionCache = false;
 			this.nextOrbitingCache = false;
 		}
-print(
-	"next is "
-	+ (this.nextCache === false ? "[none]"
-		: (
-			(this.nextCache as compositeTrajectory).current instanceof OrbitalTrajectory ?
-			("orbit, around " + (this.nextCache.current as OrbitalTrajectory).orbiting.name)
-			: "linear"
-		)
-	)
-)
-if (this.nextCache){
-	print(`\tstart time: ${this.timeOfNext instanceof Chrono ? this.timeOfNext.toString() : error("5hruirft")}`)
-}
+// print(
+// 	"next is "
+// 	+ (this.nextCache === false ? "[none]"
+// 		: (
+// 			(this.nextCache as compositeTrajectory).current instanceof OrbitalTrajectory ?
+// 			("orbit, around " + (this.nextCache.current as OrbitalTrajectory).orbiting.name)
+// 			: "linear"
+// 		)
+// 	)
+// )
+// if (this.nextCache){
+// 	print(`\tstart time: ${this.timeOfNext instanceof Chrono ? this.timeOfNext.toString() : error("5hruirft")}`)
+// }
 	}
 
 	private nextFromLinear(): void {
@@ -559,13 +559,6 @@ print(
 	override changeVelocity(currentTime: Chrono, velocity: Vector3D): compositeTrajectory {
 		return new CompositeTrajectory(
 			this.current.changeVelocity(currentTime, velocity),
-			this.rootGravityCelestials
-		);
-	}
-
-	override deepClone(): CompositeTrajectory<T> {
-		return new CompositeTrajectory<T>(
-			this.current.deepClone() as T,
 			this.rootGravityCelestials
 		);
 	}

@@ -59,6 +59,4 @@ export default abstract class Physics extends Relative {
 	public equals(other?: Physics): other is Physics {
 		return super.equals(other);
 	}
-
-	public abstract deepClone(): Physics
 }

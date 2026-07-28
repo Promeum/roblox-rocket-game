@@ -1,0 +1,46 @@
+{
+    "Probe Nosecone": [
+        {
+            "id": "Probe Battery",
+            "type": "Container",
+            "resource": ["Electricity"],
+            "max": [800],
+            "transferRates": [1],
+            "resources": [100],
+            "priority": [5]
+        }
+    ],
+    "Fuel Tank": [
+        {
+            "id": "Fuel Tank Container",
+            "type": "Container",
+            "resource": ["Kerosene", "LiquidOxygen"],
+            "max": [1000, 750],
+            "transferRates": [200, 150],
+            "resources": [1000, 750],
+            "priority": [5, 5]
+        }
+    ],
+    "Rocket Engine": [
+        {
+            "id": "Rocket Thruster",
+            "type": "Thruster",
+            "flowData": {
+                "id": "Rocket Engine Flow",
+                "type": "Flow",
+                "resource": ["Kerosene", "LiquidOxygen", "Electricity"],
+                "flow": [0, 0, 0],
+                "targetFlow": [0, 0, 0],
+                "maxFlow": [-40, -30, 20],
+                "byproducts": ["Electricity"]
+            },
+            "maxThrust": 30000,
+            "maxThrustRate": 0.2,
+            "thrust": 0,
+            "targetThrust": 1.0,
+            "thrustVector": ["NozzleCM", "BellNozzle", "ThrustVector"],
+            "gimbal": ["TopCM", "TopPart", "AlignOrientation"],
+            "lookVector": [0, -1, 0]
+        }
+    ]
+}

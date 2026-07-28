@@ -68,7 +68,7 @@ export default class GravityCelestial extends Celestial {
 		return super.setState(chrono) as GravityState;
 	}
 
-	override deepClone(): GravityCelestial {
+	override serialize(): string {
 		error("Not implemented")
 	}
 }

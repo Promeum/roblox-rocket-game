@@ -50,10 +50,4 @@ export default class ViewCamera extends BaseModule {
     public update(deltaTime: number) {
         this.controller.Update(deltaTime);
     }
-
-	// Utility methods
-
-    public deepClone(): ViewCamera {
-		error("ViewCamera deepClone() Method disabled")
-    }
 }

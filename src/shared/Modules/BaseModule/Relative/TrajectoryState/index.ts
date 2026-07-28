@@ -68,6 +68,4 @@ export default abstract class TrajectoryState extends Relative {
 	override getRelative(): TrajectoryState {
 		return super.getRelative() as TrajectoryState;
 	}
-
-	abstract override deepClone(): TrajectoryState;
 }

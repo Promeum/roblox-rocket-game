@@ -9,8 +9,6 @@ export default abstract class BaseModule {
         return other instanceof BaseModule
     }
 
-	public abstract deepClone(): BaseModule
-
     /**
      * DEBUG ONLY
      */

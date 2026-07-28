@@ -43,8 +43,4 @@ export default class PhysicsState extends CelestialState {
     override equals(other?: PhysicsState): other is PhysicsState {
         return super.equals(other);
     }
-
-    override deepClone(): PhysicsState {
-        return new PhysicsState(this);
-    }
 }

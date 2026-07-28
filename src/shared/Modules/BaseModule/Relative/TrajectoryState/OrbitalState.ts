@@ -88,8 +88,4 @@ export default class OrbitalState extends TrajectoryState {
 	override equals(other?: OrbitalState): other is OrbitalState {
 		return super.equals(other) && this.trueAnomaly === other.trueAnomaly;
 	}
-
-	override deepClone(): OrbitalState {
-		return this;
-	}
 }

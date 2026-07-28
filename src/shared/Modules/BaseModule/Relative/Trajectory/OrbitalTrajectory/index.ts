@@ -568,8 +568,4 @@ this._testpart(
 			x => this.calculateStateFromTrueAnomaly(x)
 		) as Promise<OrbitalState[]>;
 	}
-
-	override deepClone(): OrbitalTrajectory {
-		return new OrbitalTrajectory(this.start.deepClone());
-	}
 }

@@ -206,6 +206,4 @@ export default abstract class Trajectory extends Relative {
 	override sameRelativeTree(other: Trajectory): boolean {
 		return super.sameRelativeTree(other);
 	}
-
-	abstract override deepClone(): Trajectory
 }

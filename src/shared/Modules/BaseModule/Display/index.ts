@@ -17,8 +17,4 @@ export default abstract class Display extends BaseModule {
     override equals(other?: Display): other is Display {
         return this === other;
     }
-
-    override deepClone(): Display {
-        return this;
-    }
 }

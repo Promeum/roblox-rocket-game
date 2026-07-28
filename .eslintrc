@@ -15,6 +15,7 @@
 		"roblox-ts"
 	],
 	"rules": {
+		"roblox-ts/lua-truthiness": "off"
 	},
 	"extends": [
 		"eslint:recommended",

@@ -228,8 +228,4 @@ export default class Acceleration extends Physics {
 	override convergenceItem(other: Acceleration): Acceleration | undefined {
         return super.convergenceItem(other) as Acceleration | undefined;
     }
-
-	override deepClone(): Acceleration {
-		return this;
-	}
 }

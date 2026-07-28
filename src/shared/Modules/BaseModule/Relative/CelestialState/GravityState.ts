@@ -38,8 +38,4 @@ export default class GravityState extends CelestialState {
     override equals(other?: GravityState): other is GravityState {
         return super.equals(other);
     }
-
-    override deepClone(): GravityState {
-        return new GravityState(this);
-    }
 }

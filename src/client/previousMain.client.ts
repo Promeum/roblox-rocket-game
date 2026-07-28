@@ -137,7 +137,7 @@
 // 	// new Vector3D(920, 300, 150), // 2nd trajectory orbit line is overdrawn
 // 	Chrono.zero,
 // [Sun],
-// 	new Craft(new CraftPart(undefined, [], new RigidBody(satCollisionModel))),
+// 	new Craft(new CraftPart(undefined, new RigidBody(satCollisionModel), [], [])),
 // 	Moon
 // );
 

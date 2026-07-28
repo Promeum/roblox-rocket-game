@@ -5,7 +5,7 @@ import LinearTrajectory from "../Relative/Trajectory/LinearTrajectory";
 import OrbitalTrajectory from "../Relative/Trajectory/OrbitalTrajectory";
 import GravityCelestial from "../Celestial/GravityCelestial";
 import PhysicsCelestial from "../Celestial/PhysicsCelestial";
-import Universe from "../Universe";
+import UniverseInstance from "../UniverseInstance";
 import GravityDisplay from "../Display/GravityDisplay";
 import TrajectoryDisplay from "../Display/TrajectoryDisplay";
 import CompositeTrajectoryDisplay from "../Display/CompositeTrajectoryDisplay";
@@ -54,7 +54,7 @@ export default class AstronomicalView extends View {
 	// Constructor
 
 	public constructor(
-		universe: Universe, orbitResolution: number = 380,
+		universe: UniverseInstance, orbitResolution: number = 380,
 		time: Chrono = universe.time, scale: number = 1 / 500_000_000,
 		offset: Vector3D = Vector3D.zero, trajectoryWidth: number = 0.5
 	) {
@@ -149,9 +149,5 @@ export default class AstronomicalView extends View {
 
 	private allPhysicsCelestials(): PhysicsCelestial[] {
 		return this.universe.allPhysicsCelestials;
-	}
-
-	override deepClone(): AstronomicalView {
-		error("AstronomicalView deepClone() method disabled")
 	}
 }

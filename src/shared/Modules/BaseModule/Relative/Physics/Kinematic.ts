@@ -236,8 +236,4 @@ export default class Kinematic extends Physics {
 	override convergenceItem(other: Kinematic): Kinematic | undefined {
 		return super.convergenceItem(other) as Kinematic | undefined;
 	}
-
-	override deepClone(): Kinematic {
-		return this;
-	}
 }
