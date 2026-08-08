@@ -8,7 +8,8 @@
 		"project": "./tsconfig.json"
 	},
 	"ignorePatterns": [
-		"/out"
+		"/out",
+		"/src/shared/Assets"
 	],
 	"plugins": [
 		"@typescript-eslint",

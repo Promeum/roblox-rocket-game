@@ -47,7 +47,7 @@ function toLiveState<T extends StateVariant<"serializable">>(serialized: T, mode
     } else if (serialized.type === "Thruster") {
         return {
             ...serialized,
-            flowData: toLiveState(serialized.flowData, model),
+            flowData: new Flow(toLiveState(serialized.flowData, model)),
             thrustVector: parsePath(model as Model, serialized.thrustVector),
             lookVector: serialized.lookVector ? new Vector3(...serialized.lookVector) : undefined,
             gimbal: serialized.gimbal ? parsePath(model as Model, serialized.gimbal) : undefined
@@ -55,7 +55,7 @@ function toLiveState<T extends StateVariant<"serializable">>(serialized: T, mode
     } else if (serialized.type === "ControlWheel") {
         return {
             ...serialized,
-            flowData: toLiveState(serialized.flowData, model),
+            flowData: new Flow(toLiveState(serialized.flowData, model)),
             gimbal: parsePath(model as Model, serialized.gimbal)
         } as LiveState<T>;
     } else return {...serialized} as LiveState<T>;
@@ -80,28 +80,31 @@ export default class ModuleState {
 				case "Container":
 					this.registerContainer(toLiveState(moduleParam, model));
 					break;
-				case "Flow":
-					this.registerFlow(toLiveState(moduleParam, model));
-					break;
 				case "Thruster":
-					this.registerThruster(toLiveState(moduleParam, model));
+                    const liveThruster = toLiveState(moduleParam, model);
+					this.registerThruster(liveThruster);
+					this.registerFlow(liveThruster.flowData);
 					break;
 				case "ControlWheel":
-					this.registerControlWheel(toLiveState(moduleParam, model));
+                    const liveCW = toLiveState(moduleParam, model);
+					this.registerControlWheel(liveCW);
+					this.registerFlow(liveCW.flowData);
 					break;
+                default:
+                    warn(`ModulesState constructor() Module ${moduleParam.type} not registered`);
 			}
 		}
     }
 
     // Private methods
 
-    private registerFlow(state: FlowState<"live">) {
-        this.flows.push(new Flow(state));
-    }
-
     private registerContainer(state: ContainerState<"live">) {
         if (this.container !== undefined) warn(`ModuleState registerContainer() Overwriting an existing Container: ${this.container}`)
         this.container = new Container(state);
+    }
+
+    private registerFlow(flow: Flow) {
+        this.flows.push(flow);
     }
 
     private registerThruster(state: ThrusterState<"live">) {

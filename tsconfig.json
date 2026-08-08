@@ -2,19 +2,19 @@
 	"compilerOptions": {
 		// required
 		"allowSyntheticDefaultImports": true,
-		"downlevelIteration": true,
 		"jsx": "react",
 		"jsxFactory": "React.createElement",
 		"jsxFragmentFactory": "React.Fragment",
 		"module": "commonjs",
-		"moduleResolution": "Node",
 		"noLib": true,
 		"resolveJsonModule": true,
 		"experimentalDecorators": true,
 		"forceConsistentCasingInFileNames": true,
 		"moduleDetection": "force",
+		// "ignoreDeprecations": "6.0",
+		"moduleResolution": "Node",
 		"strict": true,
-		"target": "ESNext",
+		"target": "ES6",
 
 		// fix for broken `npm init roblox-ts` config
 		"typeRoots": ["./node_modules/@rbxts"],
@@ -24,7 +24,7 @@
 		// configurable
 		"rootDir": "src",
 		"outDir": "out",
-		"baseUrl": "src",
+		"paths": {"*": ["./src/*"]},
 		"incremental": true,
 		"tsBuildInfoFile": "out/tsconfig.tsbuildinfo",
 		// "plugins": [

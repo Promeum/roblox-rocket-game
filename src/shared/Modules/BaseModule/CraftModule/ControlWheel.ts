@@ -1,12 +1,13 @@
 import CraftModule from ".";
-import { FlowState } from "./Flow";
+import type Flow from "./Flow";
+import type { FlowState } from "./Flow";
 import { State } from "./ModuleState";
 
 export type TorqueValue = { X: number, Y: number, Z: number }
 
 export interface ControlWheelState<S extends "serializable" | "live"> extends State {
     type: "ControlWheel",
-    flowData: FlowState<S>;
+    flowData: S extends "serializable" ? FlowState<"serializable"> : Flow;
     /** Maximum force in Newtons, applied per-axis */
     maxTorque: number;
     /** Current force as ratio (0 to 1 inclusive) */
@@ -41,7 +42,7 @@ export default class ControlWheel extends CraftModule {
      * @returns Thrust as ratio
      */
 	private adjustedTorque(): TorqueValue {
-        const flowData = this.state.flowData;
+        const flowData = this.state.flowData.state;
         const flowAvailable = (() => { // Calculate ratio of current flow to max flow
             const proportions = flowData.resource.types
                 .map((r, i) => !flowData.byproducts.includes(r) ? i : -1)
@@ -55,7 +56,7 @@ export default class ControlWheel extends CraftModule {
 	// Public methods
 
     /** Sets `flowData.targetFlow` */
-    requestFlow(): FlowState<"live"> {
+    requestFlow(): Flow {
         // TODO
         return this.state.flowData;
     }

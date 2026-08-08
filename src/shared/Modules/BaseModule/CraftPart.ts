@@ -4,7 +4,7 @@ import BaseModule from ".";
 import RigidBody from "./RigidBody";
 import ModuleState, { StateVariant } from "./CraftModule/ModuleState";
 import type Craft from "./Craft";
-import { FlowState } from "./CraftModule/Flow";
+import type Flow from "./CraftModule/Flow";
 
 type PresetName = "Rocket Engine" | "Fuel Tank" | "Probe Nosecone"
 
@@ -66,7 +66,7 @@ export default class CraftPart extends BaseModule {
 
 	// Simulation methods
 
-	requestFlow(): FlowState<"live">[] {
+	requestFlow(): Flow[] {
 		const result = [
 			...this.state.thrusters.map(t => t.requestFlow()),
 			...this.state.controlWheels.map(c => c.requestFlow())
@@ -105,6 +105,7 @@ export default class CraftPart extends BaseModule {
 
 	// Relationship management
 
+	// TODO: Refactor to only use parameters (string, Attachment)
 	/**
 	 * Parents a `CraftPart` to the current instance.
 	 * Call in `preSimulation`.

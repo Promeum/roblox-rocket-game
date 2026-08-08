@@ -118,11 +118,12 @@ export default class Flow extends CraftModule {
         delta: number,
         totalResources: ReadonlyMap<ResourceTypes, number>,
         totalCapacity: ReadonlyMap<ResourceTypes, number>,
-        flowRequests: FlowState<"live">[]
+        flowRequests: Flow[]
     ): void {
         const totalRequested = new Map<ResourceTypes, number>();
         const byproductRequested = new Map<ResourceTypes, number>();
-        for (const request of flowRequests) {
+        for (const flow of flowRequests) {
+            const request = flow.state;
             for (let i = 0; i < request.targetFlow.size(); i++) {
                 const resource = request.resource.types[i];
                 if (!request.byproducts.includes(resource)) {
@@ -168,7 +169,7 @@ export default class Flow extends CraftModule {
         const extra = totalResources as Map<ResourceTypes, number>;
         const flowRatios: number[] = [];
         for (let i = 0; i < flowRequests.size(); i++) {
-            const request = flowRequests[i];
+            const request = flowRequests[i].state;
             let minRatio = 1;
             for (let j = 0; j < request.resource.length; j++) {
                 const resource = request.resource.types[j];
@@ -191,7 +192,7 @@ export default class Flow extends CraftModule {
         // Use excess resources for byproducts
         const byresourceRatios = applyRatios(byproductRequested, extra);
         for (let i = 0; i < flowRequests.size(); i++) {
-            const request = flowRequests[i];
+            const request = flowRequests[i].state;
             for (let j = 0; j < request.resource.length; j++) {
                 const resource = request.resource.types[j];
                 if (request.byproducts.includes(resource)) {

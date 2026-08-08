@@ -1,6 +1,6 @@
 import CraftModule from ".";
-import { ResourceTypes } from "../Resource";
-import { FlowState } from "./Flow";
+import type Flow from "./Flow";
+import type { FlowState } from "./Flow";
 import { State } from "./ModuleState";
 
 /**
@@ -11,7 +11,7 @@ export const RFU_PER_NEWTON = 0.163;
 
 export interface ThrusterState<S extends "serializable" | "live"> extends State {
     type: `Thruster`,
-    flowData: FlowState<S>;
+    flowData: S extends "serializable" ? FlowState<"serializable"> : Flow;
     /** Maximum thrust in Newtons */
     maxThrust: number; // TODO: Add atmospheric efficiency profile (for later phase)
     /** Thrust change rate as ratio per second squared */
@@ -65,7 +65,7 @@ export default class Thruster extends CraftModule {
             math.min(1, this.state.thrust + maxModulation),
         );
 
-        const flowData = this.state.flowData;
+        const flowData = this.state.flowData.state;
         const flowRatio = (() => { // Calculate ratio of target flow to max flow
             const proportions = flowData.resource.types
                 .map((r, i) => !flowData.byproducts.includes(r) ? i : -1)
@@ -80,9 +80,9 @@ export default class Thruster extends CraftModule {
     // Public methods
 
     /** Sets `flowData.targetFlow` */
-    requestFlow(): FlowState<"live"> {
+    requestFlow(): Flow {
         // TODO: Apply maxThrustRate
-        this.state.flowData.targetFlow = this.state.flowData.maxFlow
+        this.state.flowData.state.targetFlow = this.state.flowData.state.maxFlow
             .map(flow => flow * this.state.targetThrust);
         return this.state.flowData;
     }

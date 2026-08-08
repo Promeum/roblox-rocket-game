@@ -50,7 +50,8 @@
     "Workspace": {
       "$className": "Workspace",
       "$properties": {
-        "FilteringEnabled": true
+        "FilteringEnabled": true,
+        "FallHeightEnabled": false
       }
     }
   },

@@ -1,17 +1,19 @@
+import Vector3D from "shared/Modules/Libraries/Vector3D";
 import BaseModule from "..";
 import UniverseInstance from "../UniverseInstance";
+import Chrono from "../Chrono";
 
 export default abstract class View extends BaseModule {
-	public readonly viewFolder: Folder = new Instance("Folder");
+	readonly viewFolder: Folder = new Instance("Folder");
 
-	protected constructor(public readonly universe: UniverseInstance) {
+	protected constructor(readonly universe: UniverseInstance) {
 		super();
 		this.viewFolder.Name = "View";
 	}
 
-	public abstract draw(): void
+	abstract draw(scale?: number, offset?: Vector3D, time?: Chrono): void
 
-	override equals(other?: View): other is View {
-		return this === other;
+	destroy(): void {
+		this.viewFolder.Destroy();
 	}
 }

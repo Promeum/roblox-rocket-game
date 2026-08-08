@@ -3,37 +3,14 @@
 // import Chrono from "shared/Modules/BaseModule/Chrono";
 // import GravityCelestial from "shared/Modules/BaseModule/Celestial/GravityCelestial";
 // import PhysicsCelestial from "shared/Modules/BaseModule/Celestial/PhysicsCelestial";
-// import UniverseInstance from "shared/Modules/BaseModule/Universe/UniverseInstance";
+// import UniverseInstance from "shared/Modules/BaseModule/UniverseInstance";
 // import AstronomicalView from "shared/Modules/BaseModule/View/AstronomicalView";
 // import Craft from "shared/Modules/BaseModule/Craft";
 // import CraftPart from "shared/Modules/BaseModule/CraftPart";
-// import RigidBody from "shared/Modules/BaseModule/RigidBody";
 
 // import Datamap from "shared/Modules/BaseModule/Datamap";
 
 // // Initialize Celestials
-
-// // // (Verifying correctness)
-
-// // const Moon = new GravityCelestial(
-// // 	"Sun",
-// // 	new Vector3D(0, 0, 0),
-// // 	new Vector3D(0, 0, 0),
-// // 	Chrono.zero,
-// // 	5.97216187e15,
-// // 	695700e3,
-// // 	new BrickColor("Pastel brown").Color,
-// //     undefined as unknown as Datamap
-// // );
-// // const satellite = new PhysicsCelestial(
-// // 	"Satellite",
-// // 	new Vector3D(1_000, 7_000, 5_000),
-// // 	new Vector3D(3.0, 5.0, 4.0),
-// // 	// new Vector3D(920, 300, 150), // 2nd trajectory orbit line is overdrawn
-// // 	Chrono.zero,
-// // [],
-// // 	Moon
-// // );
 
 // // (Solar System)
 
@@ -107,59 +84,106 @@
 
 // game.Workspace.Gravity = 0;
 
-// // Satellite Setup
-// // PhysicsCelestials needs manual setup for now
-// // They are planned to use 3D-placed UI elements in AstronomicalView
-// // and Craft instances to be displayed in WorldView
+// // // Satellite Setup
+// // // PhysicsCelestials needs manual setup for now
+// // // They are planned to use 3D-placed UI elements in AstronomicalView
+// // // and Craft instances to be displayed in WorldView
 
-// const satCollisionModel = new Instance("Model");
-// satCollisionModel.Name = "Satellite RigidBody";
+// // const satCollisionModel = new Instance("Model");
+// // satCollisionModel.Name = "Satellite RigidBody";
 
-// const satPart: Part = new Instance("Part");
+// // const satPart: Part = new Instance("Part");
 
-// satPart.Shape = Enum.PartType.Block;
-// // satPart.Anchored = true;
-// satPart.Material = Enum.Material.Neon;
-// satPart.Name = "satPart";
-// satPart.Color = new BrickColor("Fire Yellow").Color;
-// satPart.Size = new Vector3(1, 2, 1);
+// // satPart.Shape = Enum.PartType.Block;
+// // // satPart.Anchored = true;
+// // satPart.Material = Enum.Material.Neon;
+// // satPart.Name = "satPart";
+// // satPart.Color = new BrickColor("Fire Yellow").Color;
+// // satPart.Size = new Vector3(1, 2, 1);
 
-// // satPart.Parent = game.Workspace;
-// satPart.Parent = satCollisionModel;
-// satCollisionModel.PrimaryPart = satPart;
+// // // satPart.Parent = game.Workspace;
+// // satPart.Parent = satCollisionModel;
+// // satCollisionModel.PrimaryPart = satPart;
 
-// satCollisionModel.Parent = game.Workspace;
+// // satCollisionModel.Parent = game.Workspace;
 
-// const satellite = new PhysicsCelestial(
-// 	"Satellite",
+// // const satellite = new PhysicsCelestial(
+// // 	"Satellite",
+// // 	new Vector3D(0, 0, -1e7),
+// // 	new Vector3D(920, 300, 100),
+// // 	// new Vector3D(920, 300, 150), // 2nd trajectory orbit line is overdrawn
+// // 	Chrono.zero,
+// // [Sun],
+// // 	new Craft(new CraftPart(undefined, new RigidBody(satCollisionModel), [], [])),
+// // 	Moon
+// // );
+
+// // // velocity of satellite
+
+// // const velPart: Part = new Instance("Part");
+
+// // velPart.Shape = Enum.PartType.Block;
+// // velPart.Anchored = true;
+// // velPart.Material = Enum.Material.Neon;
+// // velPart.Name = "velPart";
+// // velPart.Color = new BrickColor("Carnation pink").Color;
+// // velPart.Size = new Vector3(1, 1, 1);
+
+// // velPart.Parent = game.Workspace;
+
+// // // Satellite Setup Complete
+// // Rocketship Setup
+
+// const nosecone = CraftPart.make("Probe Nosecone");
+// const fueltank = CraftPart.make("Fuel Tank");
+// const rocketengine = CraftPart.make("Rocket Engine");
+
+// const rocketship = new PhysicsCelestial(
+//     "Rocketship",
 // 	new Vector3D(0, 0, -1e7),
 // 	new Vector3D(920, 300, 100),
 // 	// new Vector3D(920, 300, 150), // 2nd trajectory orbit line is overdrawn
 // 	Chrono.zero,
-// [Sun],
-// 	new Craft(new CraftPart(undefined, new RigidBody(satCollisionModel), [], [])),
-// 	Moon
+//     [Sun],
+//     new Craft(
+//         nosecone.addChild(
+//             nosecone.getConnectionPoint("Bottom"),
+//             fueltank.getConnectionPoint("Top"),
+//             fueltank.addChild(
+//                 fueltank.getConnectionPoint("Bottom"),
+//                 rocketengine.getConnectionPoint("Top"),
+//                 rocketengine
+//             )
+//         )
+//     ),
+//     Moon
 // );
 
-// // velocity of satellite
+// rocketship.setPhysicsMode("rails");
 
-// const velPart: Part = new Instance("Part");
+// const weldfolder = new Instance("Folder");
+// weldfolder.Name = "Welds";
+// rocketship.flyingObject.allParts().map(p => p.getChildWelds()).reduce((a,c) => [...a, ...c])
+//     .forEach(weld => {
+//         weld.Parent = weldfolder;
+//     }
+// );
 
-// velPart.Shape = Enum.PartType.Block;
-// velPart.Anchored = true;
-// velPart.Material = Enum.Material.Neon;
-// velPart.Name = "velPart";
-// velPart.Color = new BrickColor("Carnation pink").Color;
-// velPart.Size = new Vector3(1, 1, 1);
+// const rocketfolder = new Instance("Folder");
+// rocketfolder.Name = "Rocketship";
+// for (const model of [nosecone.model, fueltank.model, rocketengine.model])
+//     model.Parent = rocketfolder;
 
-// velPart.Parent = game.Workspace;
+// weldfolder.Parent = rocketfolder;
+// rocketfolder.Parent = game.Workspace;
 
+// // Rocketship Setup Complete
 // // Solar System Setup Complete
 
 // const universe: UniverseInstance = new UniverseInstance(
 // 	Chrono.zero,
 // 	[Sun],
-// 	[satellite]
+// 	[rocketship]/* [satellite] */
 // );
 
 // const startScale = 1 / Earth.radius;//1 / Mercury.radius;//1 / 500_000_000;
@@ -276,47 +300,37 @@
 //   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
 // */
 
-// // let p="[" // points to test
-// // for(let i=0;i<500;i++){
-// // 	const o=new Chrono(i*100_000)
-// // 	p+="("+o.relativeTime+"x,"+(
-// // 		satellite.trajectory.nextTrajectory().currentTrajectory.calculateStateFromTime(o).getKinematic().getPosition().sub(
-// // 		Moon.trajectory.calculateStateFromTime(o).getKinematic().getPosition()).magnitude()
-// // 		- Moon.SOIRadius
-// // 	)+"),"
-// // }p+="]"
-// // print(p.gsub(",]","]")[0])
-// // ##################################################################################################################################
 // const timeWarpMultiplier = 120_000//20_000//200_000;
 
 // game.GetService("RunService").PreSimulation.Connect((deltaTime: number) => {
-//     universe.advanceGlobalTime(deltaTime * timeWarpMultiplier);
+//     universe.preSimulation(deltaTime * timeWarpMultiplier);
 // 	debug.profilebegin("Draw Solar System")
-// 	// if (math.clamp(universe.time.relativeTime, 100_000, 300_000) !== universe.time.relativeTime) {
-// 	// 	const offset = (
-// 	// 		(universe.time.relativeTime < 200_000) ?
-// 	// 			Mercury.calculateState(universe.time).physics
-// 	// 				.getKinematic().getAbsolutePosition().negate()
-// 	// 		:
-// 	// 			Earth.calculateState(universe.time).physics
-// 	// 				.getKinematic().getAbsolutePosition().negate()
-// 	// 	);
-// 		view.draw(
-// 			undefined,
-// 			Earth.calculateState(universe.time).physics
-// 					.getKinematic().absolutePosition().negate(),// offset,
-// 			universe.time
-// 			// ( // zoom animation testing
-// 			// 	math.sin(universe.time.relativeTime / timeWarpMultiplier / (2 * math.pi) * 4)
-// 			// 	/ 4 + 1
-// 			// ) * scale
-// 		);
-// satPart.Position = satellite.trajectory.calculateStateFromTime(universe.time)
-// 	.getKinematic().absolutePosition().add(Earth.calculateState(universe.time)
-// 	.physics.getKinematic().absolutePosition().negate()).mul(startScale).toVector3();
-// velPart.Position = satPart.Position.add(satellite.trajectory.calculateStateFromTime(universe.time)
-// 	.getKinematic().absoluteVelocity().add(Earth.calculateState(universe.time)
-// 	.physics.getKinematic().absoluteVelocity().negate()).mul(startScale*10000).toVector3());
+// // zoom animation testing
+// // if (math.clamp(universe.time.relativeTime, 100_000, 300_000) !== universe.time.relativeTime) {
+// // 	const offset = (
+// // 		(universe.time.relativeTime < 200_000) ?
+// // 			Mercury.calculateState(universe.time).physics
+// // 				.getKinematic().getAbsolutePosition().negate()
+// // 		:
+// // 			Earth.calculateState(universe.time).physics
+// // 				.getKinematic().getAbsolutePosition().negate()
+// // 	);
+// 	view.draw(
+// 		undefined,
+// 		Earth.calculateState(universe.time).physics
+// 				.getKinematic().absolutePosition().negate(),// offset,
+// 		universe.time
+// // (
+// // 	math.sin(universe.time.relativeTime / timeWarpMultiplier / (2 * math.pi) * 4)
+// // 	/ 4 + 1
+// // ) * scale
+// 	);
+// // satPart.Position = satellite.trajectory.calculateStateFromTime(universe.time)
+// // 	.getKinematic().absolutePosition().add(Earth.calculateState(universe.time)
+// // 	.physics.getKinematic().absolutePosition().negate()).mul(startScale).toVector3();
+// // velPart.Position = satPart.Position.add(satellite.trajectory.calculateStateFromTime(universe.time)
+// // 	.getKinematic().absoluteVelocity().add(Earth.calculateState(universe.time)
+// // 	.physics.getKinematic().absoluteVelocity().negate()).mul(startScale*10000).toVector3());
 
 // // 	} else {
 // // 		const offsetAndScale = anim.draw(universe.time);
@@ -333,6 +347,7 @@
 //  = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 //   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =   =
 // */
+// // gui edit trajectory
 
 // // const player: Player = game.GetService("Players").LocalPlayer;
 

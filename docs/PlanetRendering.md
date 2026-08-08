@@ -1,6 +1,6 @@
 # Planet rendering
 
-- Generate terrain based on planet-wide heightmap, stored in either an image or hardcoded data
+- Generate terrain based on planet-wide heightmap
 - Relevant modules:
   - `src/shared/Modules/BaseModule/Display/TerrainDisplay/`
   - `src/shared/Modules/BaseModule/Display/Datamap.ts`
@@ -9,6 +9,7 @@
 ## Datamap module
 
 - Stores a heightmap, provides accessors
+- Heightmap: Either an image or manually-generated JSON
 
 ## Terrain
 

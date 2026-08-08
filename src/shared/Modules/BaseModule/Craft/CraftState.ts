@@ -54,14 +54,15 @@ export default class CraftState extends BaseModule {
 
         this.craft = craft;
 
-        for (const module of this.craft.allModules()) {
-            if (module instanceof Container)
-                this.containers.push(module);
-            else if (module instanceof Flow)
-                this.flows.push(module);
-            else if (module instanceof Thruster)
-                this.thrusters.push(module);
-            else error(`Unsupported CraftModule: "${module}"`);
+        for (const part of craft.allParts()) {
+            const container = part.state.container;
+            if (container) this.containers.push(container);
+
+            for (const flow of part.state.flows)
+                this.flows.push(flow);
+
+            for (const thruster of part.state.thrusters)
+                this.thrusters.push(thruster);
         }
 
         const tieredContainers = new Map<ResourceTypes, Record<ContainerPriority, Container[]> | undefined>();
@@ -96,7 +97,7 @@ export default class CraftState extends BaseModule {
      * Total available resources across all containers at call time.
      * Unstored resources are omitted.
      */
-    public containerResources(): ReadonlyMap<ResourceTypes, number> {
+    containerResources(): ReadonlyMap<ResourceTypes, number> {
         const available = new Map<ResourceTypes, number>();
         for (const container of this.containers) {
             for (let i = 0; i < container.state.resource.length; i++) {
@@ -111,7 +112,7 @@ export default class CraftState extends BaseModule {
      * Total capacity for all resources across all containers at call time.
      * Unstored resources are omitted.
      */
-    public containerMax(): ReadonlyMap<ResourceTypes, number> {
+    containerMax(): ReadonlyMap<ResourceTypes, number> {
         const capacity = new Map<ResourceTypes, number>(RESOURCES_LIST.map(r => [r, 0]));
         for (const container of this.containers) {
             for (let i = 0; i < container.state.resource.length; i++) {
@@ -123,7 +124,7 @@ export default class CraftState extends BaseModule {
     }
 
     /** Total available resources from all flows at call time */
-    public flowResources(): ReadonlyMap<ResourceTypes, number> {
+    flowResources(): ReadonlyMap<ResourceTypes, number> {
         const available = new Map<ResourceTypes, number>(RESOURCES_LIST.map(r => [r, 0]));
         for (const flow of this.flows) {
             for (let i = 0; i < flow.state.resource.length; i++) {

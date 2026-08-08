@@ -137,4 +137,8 @@ export default class CompositeTrajectoryDisplay extends Display {
 
 		return this.displayFolder;
 	}
+
+	destroy() {
+		this.displayFolder.Destroy();
+	}
 }

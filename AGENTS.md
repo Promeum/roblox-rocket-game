@@ -1,16 +1,16 @@
-# Project Overview
+# Project overview
 
 Physics-based rocket launch simulation built on Roblox.  
 Simulates orbital mechanics and rigid-body rocket physics.
 
-# Best Practices
+# Best practices
 
 ## Files
 
 - All .ts modules under `src/shared/Modules` must be in CamelCase
-  - Exception for modules with subclasses or multi-file modules: `ModuleName.ts` → `ModuleName/index.ts`
+  - Modules with children: `ModuleName.ts` → `ModuleName/index.ts`
 
-### File Organization
+### File organization
 
 ```
 src/
@@ -39,3 +39,7 @@ src/
 - No `Array` or `Object` global (Array *constructor* exists)
   - Use `new Array(len, val)` instead of `arr.fill(val)`
   - No `.keys()`, `.values()`, `.entries()` for `Map` and `Set` objects
+
+# Code validation
+
+Run `npm run typecheck` instead of `tsc --noEmit`, which is broken.

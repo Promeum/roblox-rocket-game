@@ -44,29 +44,10 @@ export default class PhysicsCelestial extends Celestial {
 
 	// Methods
 
-	/**
-	 * Transitions between modes by initializing
-	 * the underlying Roblox kinematics.
-	 * 
-	 * May move to `Craft` in future after implementing
-	 * multi-`CraftPart` craft physics.
-	 */
 	setPhysicsMode(physicsMode: "rails" | "physics"): void {
-		this.physicsMode = physicsMode;
-		if (physicsMode === "physics") {
-			for (const craftPart of this.flyingObject.allParts()) {
-				craftPart.rigidBodies.forEach(rb => {
-					// Assume orbiting is 0 velocity, will change in future
-					rb.part.AssemblyLinearVelocity = this.state.velocity.toVector3();
-				});
-			}
-		} else {
-			for (const craftPart of this.flyingObject.allParts()) {
-				craftPart.rigidBodies.forEach(rb => {
-					rb.part.AssemblyLinearVelocity = Vector3.zero;
-					rb.part.AssemblyAngularVelocity = Vector3.zero;
-				});
-			}
+		if (this.physicsMode !== physicsMode) {
+			this.physicsMode = physicsMode;
+			this.flyingObject.setPhysicsMode(physicsMode);
 		}
 	}
 
@@ -80,23 +61,20 @@ export default class PhysicsCelestial extends Celestial {
 		);
 	}
 
-	/**
-	 * Assumed that `physicsMode = "physics"` and `postSimulation()`
-	 * has been called within the current `preSimulation` step.
-	 */
 	preSimulation(delta: number): void {
-		// assert(this.physicsMode === "physics")
 		this.flyingObject.preSimulation(this.state.velocity, delta);
 	}
 
 	postSimulation(): void {
-		// Updates the trajectory with data from roblox physics
-		const robloxVelocity = this.flyingObject.postSimulation();
-		const difference = robloxVelocity.sub(this.state.velocity);
-		this.trajectory = this.trajectory.changeVelocity(
-			this.state.time,
-			difference
-		) as trajectoryType;
+		if (this.physicsMode === "physics") {
+			// Updates the trajectory with data from roblox physics
+			const robloxVelocity = this.flyingObject.postSimulation();
+			const difference = robloxVelocity.sub(this.state.velocity);
+			this.trajectory = this.trajectory.changeVelocity(
+				this.state.time,
+				difference
+			) as trajectoryType;
+		}
 	}
 
 	override setState(chrono: Chrono): PhysicsState {

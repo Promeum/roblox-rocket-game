@@ -8,11 +8,12 @@ export default abstract class Display extends BaseModule {
         this.displayFolder.Name = "Display";
     }
 
+    // TODO: Refactor draw parameters to be cleaner
     /**
      * Generates the 3D component to display in the Workspace.
      * @param scale Multiplier for all distances
      */
-    public abstract draw(scale?: number): Folder
+    public abstract draw(): Folder
 
     override equals(other?: Display): other is Display {
         return this === other;
